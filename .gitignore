@@ -22,4 +22,4 @@ validation/*/
 # 存储 RStudio 的项目局部配置、临时状态和打开的文件列表
 .Rproj.user/
 
-!shiny/data.RData
+!shiny/shiny_data.RData
