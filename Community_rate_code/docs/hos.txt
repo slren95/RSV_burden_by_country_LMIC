@@ -1,0 +1,42 @@
+SID	Country	Location0	ISOCountry
+L088	Philippines	Baguio	PHL
+L157	Madagascar	Antananaviro	MDG
+L165	Egypt, Arab Rep.	Damanhour	EGY
+L248	Bolivia	La Paz	BOL
+L275	Nicaragua	Managua	NIC
+T001	Kenya	Dadaab and Kakuma	KEN
+T052	Kenya	Karemo	KEN
+T063	Thailand	Sa Kaeo and Nakhon Phanom	THA
+T091	China	Suzhou	CHN
+T143	Nigeria	Ibadan	NGA
+T145	Egypt, Arab Rep.	Damanhour	EGY
+T163	Thailand	Takhli	THA
+U047	Argentina	Buenos Aires	ARG
+U063	Jordan	Amman	JOR
+U065	Morocco	Rabat	MAR
+U068	Gambia, The	Basse	GMB
+U069	Kenya	Kilifi	KEN
+U070	Mali	Bamako	MLI
+U071	Thailand	Sa Kaeo and Nakhom Phanom	THA
+U072	Zambia	Lusaka	ZMB
+U073	Bangladesh	Dhaka	BGD
+U074	Bangladesh	Matlab	BGD
+U075	Philippines	Tacloban	PHL
+U142	Mongolia	Ulaanbaatar	MNG
+U151	Iran, Islamic Rep.	Tehran	IRN
+U153	Kenya	Kilifi	KEN
+U171	Peru	Lima and Iquitos	PER
+U174	South Africa	Piertermaritzburg	ZAF
+U175	South Africa	Paarl	ZAF
+U180	United States	Yukon Kuskokwim, Alaska	USA
+U182	Vietnam	Nha Trang	VNM
+U199	Bhutan	Thimphu	BTN
+U207	Argentina	Buenos Aires	ARG
+U245	Sri Lanka	Kegalle district	LKA
+U247	Argentina	Rio Cuarto	ARG
+U248	Bangladesh	Dhaka	BGD
+U251	Honduras	San Pedro Sula	HND
+U252	South Africa	Johannesburg	ZAF
+U253	Thailand	Bangkok, Klongluang and Khon Kaen	THA
+U255	South Africa	Klerksdorp	ZAF
+U256	Russian Federation	Saint Petersburg	RUS

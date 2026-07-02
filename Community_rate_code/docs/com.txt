@@ -1,0 +1,24 @@
+SID	Country	Location0	ISOCountry
+L200	Philippines	Kawayan, Caibiran	PHL
+L275	Nicaragua	Managua	NIC
+T015	India	Ballabhgarh	IND
+T080	Bangladesh	Dhaka	BGD
+T143	Nigeria	Ibadan	NGA
+T162	Brazil	Rio de Janeiro	BRA
+T192	Peru	San Marcos	PER
+U001	Kenya	Kilifi	KEN
+U002	Guatemala	San Marcos	GTM
+U003	Bangladesh	Dhaka	BGD
+U005	Indonesia	Bandung	IDN
+U007	Pakistan	Matiari	PAK
+U008	Pakistan	Gilgit	PAK
+U009	Peru	Puerto Maldonado	PER
+U010	South Africa	Paarl	ZAF
+U148	India	Faridabad	IND
+U159	Nicaragua	Managua	NIC
+U175	South Africa	Paarl	ZAF
+U247	Argentina	Rio Cuarto	ARG
+U248	Bangladesh	Dhaka	BGD
+U251	Honduras	San Pedro Sula	HND
+U252	South Africa	Johannesburg	ZAF
+U253	Thailand	Bangkok, Klongluang and Khon Kaen	THA

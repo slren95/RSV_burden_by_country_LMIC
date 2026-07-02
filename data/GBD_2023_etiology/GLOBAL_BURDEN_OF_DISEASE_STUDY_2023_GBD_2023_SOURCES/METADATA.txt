@@ -1,0 +1,3 @@
+Collection: Global Burden of Disease Study 2023 (GBD 2023) Sources
+Search URL: https://sources.healthdata.org/collection/sources-2023/download-citations?components=26&etiologies=190&locations=1&download-token=WJ9yM__9zzFip3bD2CMqEyZYbv8KMLpkaDqD7xRuEZw&rows=443
+Date: 2026-06-17 02:02:34 UTC
