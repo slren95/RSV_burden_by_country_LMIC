@@ -1,7 +1,6 @@
 library(shiny)
-library(shinydashboard)
 library(bslib)
-library(tidyverse)
+library(dplyr)
 library(rio)
 library(scales)
 library(leaflet)
