@@ -171,7 +171,7 @@ init_map_server <- function(input, output, session) {
   
   output$floating_card_ui <- renderUI({
     if (length(input$comparison_countries) == 0) return(NULL)
-    card(height = 400, full_screen = TRUE, card_header("Cross-Country Profile Workstation"), card_body(padding = 5, plotlyOutput("bar_plot", height = "100%")))
+    card(height = 400, full_screen = TRUE, card_header("Cross-Country Profile"), card_body(padding = 5, plotlyOutput("bar_plot", height = "100%")))
   })
   
   output$bar_plot <- renderPlotly({

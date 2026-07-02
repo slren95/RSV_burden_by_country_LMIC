@@ -4,9 +4,10 @@ library(dplyr)
 library(rio)
 library(scales)
 library(leaflet)
-#library(sf)
-library(rnaturalearth)
+library(sf)
+#library(rnaturalearth)
 library(plotly)
+library(tidyr)
 library(gt) 
 
 # tryCatch({
@@ -19,14 +20,16 @@ library(gt)
 #   stop("Error loading data files. Please check file paths: ", e$message)
 # })
 # 
+# 
+# world_sf <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf") %>%
+#   select(iso_a3 = iso_a3_eh, iso_a2, economy, geometry) %>%
+#   filter(!is.na(iso_a3)) %>%
+#   mutate(iso_a3 = toupper(trimws(iso_a3)))
+# 
 # save.image('shiny/shiny_data.RData')
+
 # load('shiny/shiny_data.RData')
 load('shiny_data.RData')
-
-world_sf <- ne_countries(scale = "medium", returnclass = "sf") %>%
-  select(iso_a3 = iso_a3_eh, iso_a2, economy, geometry) %>%
-  filter(!is.na(iso_a3)) %>%
-  mutate(iso_a3 = toupper(trimws(iso_a3)))
 
 
 # 统一提取各指标的 R 和 N 矩阵点估计值
