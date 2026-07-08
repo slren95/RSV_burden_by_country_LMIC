@@ -1,0 +1,47 @@
+
+==================== Top 5 - V_0012 (0-<12m) ====================
+
+Metric: Hospital admission rate
+  Range (min-max): 4.1 - 66.2
+  Top 5:
+           Country V_0012            0-<12m
+1          Ukraine   66.2 66.2 (26.7–153.1)
+2        Sri Lanka   50.3 50.3 (23.5–108.4)
+3          Moldova   49.9 49.9 (22.3–113.4)
+4 Korea, Dem. Rep.   47.3  47.3 (28.5–78.1)
+5       Tajikistan   46.8  46.8 (26.7–82.3)
+
+Metric: Number of episodes
+  Range (min-max): 2 - 637600
+  Top 5:
+           Country V_0012                  0-<12m
+1            India 637600 637600 (353800–1127200)
+2            China 265600  265600 (126700–515700)
+3 Egypt, Arab Rep.  95200    95200 (39900–203700)
+4         Pakistan  89400    89400 (41100–199800)
+5          Nigeria  84700    84700 (37200–201200)
+
+
+
+==================== Top 5 - V_0060 (0-<60m) ====================
+
+Metric: Hospital admission rate
+  Range (min-max): 0.8 - 23.2
+  Top 5:
+               Country V_0060           0-<60m
+1     Korea, Dem. Rep.   23.2 23.2 (12.9–44.9)
+2           Tajikistan   22.4 22.4 (11.5–43.0)
+3              Ukraine   21.4  21.4 (9.5–50.4)
+4 Syrian Arab Republic   19.2  19.2 (9.9–36.5)
+5            Sri Lanka   15.7  15.7 (7.2–33.3)
+
+Metric: Number of episodes
+  Range (min-max): 3 - 755400
+  Top 5:
+           Country V_0060                  0-<60m
+1            India 755400 755400 (404100–1393100)
+2            China 421100  421100 (191900–871000)
+3 Egypt, Arab Rep. 138800   138800 (65300–303900)
+4         Pakistan  90400    90400 (36900–201300)
+5      Philippines  80900    80900 (35200–173300)
+

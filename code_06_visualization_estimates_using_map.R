@@ -472,7 +472,7 @@ RF.res.impute2 %>%
   mutate(str_R=sprintf('%s. %s %s (%s–%s) / 1,000',row_number(),CountryName,IR_q500,IR_q025,IR_q975),
          str_N=sprintf('%s. %s %s (%s–%s)',row_number(),CountryName,N_q500,N_q025,N_q975)) %>%
   mutate(str_R2=paste0(str_R,collapse = '\n'),
-         str_N2=paste0(str_N,collapse = '\n')) %>%
+         str_N2=paste0(str_N,collapse = '\n')) %>% view()
   pull(str_R2) %>%
   head(1) %>%
   cat("\n\n Inc_R \n", ., file = "docs/top_5.txt", append = TRUE)

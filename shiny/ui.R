@@ -2,6 +2,29 @@ my_theme <- bs_theme(version = 5, bootswatch = "yeti", primary = "#2c3e50")
 
 
 ui <- page_navbar(
+  tags$head(
+    tags$style(HTML("
+    /* 基础容器：占满高度 */
+    #main_grid_container {
+      display: grid;
+      height: calc(100vh - 100px);
+      gap: 15px;
+      width: 100%;
+    }
+    
+    /* 状态 1：显示面板时的 1:2 布局 */
+    #main_grid_container.show-panel {
+      grid-template-rows: 1fr 2fr;
+    }
+    #main_grid_container.show-panel #floating_card_box { display: flex; }
+    
+    /* 状态 2：隐藏面板时的纯地图满屏布局 */
+    #main_grid_container.hide-panel {
+      grid-template-rows: 1fr;
+    }
+    #main_grid_container.hide-panel #floating_card_box { display: none; }
+  "))
+  ),
   title = tags$div(
     # 💡 核心修正：使用 inline-flex，并将自适应高度交给内容撑开，彻底切断系统默认行高的干扰
     style = "display: inline-flex; align-items: center; gap: 15px; height: 44px; padding: 0; vertical-align: middle;",
@@ -46,6 +69,11 @@ ui <- page_navbar(
                     choices = c("0-6 months" = "0-<6m", "6-12 months" = "6-<12m", "0-12 months" = "0-<12m", "12-60 months" = "12-<60m", "0-60 months" = "0-<60m")),
         radioButtons("select_type", "Data Dimension:", choices = c("Rate" = "R", "Absolute Cases (N)" = "N"), inline = TRUE),
         hr(),
+        checkboxInput(
+          inputId = "show_floating_card", 
+          label = "Show Comparison Panel", 
+          value = FALSE # 默认勾选
+        ),
         selectizeInput("comparison_metrics", "Compare Indicators:", choices = c("RSV-associated ALRI incidence" = "RSV-associated ALRI incidence", "RSV-associated ALRI hospital admission" = "RSV-associated ALRI hospital admission", "RSV-attributable mortality" = "RSV-attributable mortality", "RSV-associated mortality" = "RSV-associated mortality"), selected = c("RSV-associated ALRI incidence", "RSV-associated ALRI hospital admission"), multiple = TRUE, options = list(plugins = list('remove_button'))),
         selectizeInput("comparison_countries", "Selected Countries:", choices = country_choices, selected = c("IND", "BGD"), multiple = TRUE, options = list(plugins = list('remove_button'))),
         hr(),
@@ -54,9 +82,36 @@ ui <- page_navbar(
             p("• Incidence & Admission Rate: /1,000 person-years"), p("• Mortality Rate: /100,000 person-years"), p("• LMIC Status: Solid border")
         )
       ),
-      div(style = "position: relative; overflow: hidden;",
-          leafletOutput("map", height = "calc(100vh - 120px)"),
-          absolutePanel(id = "controls", fixed = TRUE, draggable = TRUE, top = "90px", right = "20px", width = "580px", height = "auto", uiOutput("floating_card_ui"))
+      div(
+        id = "main_flex_container",
+        style = "display: flex; height: calc(100vh - 120px); gap: 15px; width: 100%; overflow: hidden;",
+        
+        # 1. 动态样式触发器：用来在 Show/Hide 时优雅地控制左右宽度分配
+        uiOutput("grid_style_trigger"), 
+        
+        # 2. 左侧：地图组件（放在前面，保持第一位）
+        card(
+          id = "map_box",
+          full_screen = TRUE,
+          leafletOutput("map", height = "100%")
+        ),
+        
+        # 3. 右侧：比较卡片
+        conditionalPanel(
+          style = "height: 100%;", # 强行让条件面板自身高度吃满
+          condition = "input.show_floating_card == 'TRUE' && input.comparison_countries.length > 0",
+          card(
+            id = "floating_card_box",
+            full_screen = TRUE,
+            style = "height: 100%;", 
+            card_header("Cross-Country Comparison"),
+            card_body(
+              padding = 5, 
+              style = "height: 100%; overflow: hidden; min-height: 0;", # 锁死高度，防止 plotly 无限长高
+              plotlyOutput("bar_plot", height = "100%")
+            )
+          )
+        )
       )
     )
   ),

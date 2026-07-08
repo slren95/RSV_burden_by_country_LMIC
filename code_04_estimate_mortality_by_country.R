@@ -201,10 +201,12 @@ rio::export(df_sum_all_NP,'rda/df_sum_all_NP.rds')
 df_sum_all_DeCoDe.byincome<-bind_rows(
   df_mort_all_DeCoDe.lmic %>%
     transmute(m0006_N=m0001_N+m0106_N,m0612_N,m1260_N,m0060_N=m0006_N+m0612_N+m1260_N,
+              m0012_N=m0006_N+m0612_N,
               ISOCountry,Income2019,index) %>%
     summarise(across(where(is.numeric),sum),.by = c(Income2019,index)),
   df_mort_all_DeCoDe.lmic %>%
     transmute(m0006_N=m0001_N+m0106_N,m0612_N,m1260_N,m0060_N=m0006_N+m0612_N+m1260_N,
+              m0012_N=m0006_N+m0612_N,
               ISOCountry,Income2019,index) %>%
     summarise(across(where(is.numeric),sum),.by = c(index)) %>%
     mutate(Income2019='Global')
@@ -218,24 +220,29 @@ df_sum_all_DeCoDe.byincome<-bind_rows(
     .by = c(Income2019)
   ) %>%
   left_join(pop_region.byincome,by = 'Income2019') %>%
+  mutate(pop_0012=pop_0006+pop_0612) %>%
   mutate(m0006_R=m0006_N/pop_0006,
          m0612_R=m0612_N/pop_0612,
          m1260_R=m1260_N/pop_1260,
-         m0060_R=m0060_N/pop_0060
+         m0060_R=m0060_N/pop_0060,
+         m0012_R=m0012_N/pop_0012
   ) %>%
   pivot_wider(
     names_from = q,                        
     values_from = contains(c("_N", "_R")), 
     names_glue = "{.value}_{q}"           
-  )
+  ) %>%
+  mutate(Income2019=recode(Income2019,'Global'='LMIC'))
 
 df_sum_all_NP.byincome<-bind_rows(
   df_mort_all_NP.lmic %>%
     transmute(m0006_N=m0001_N+m0106_N,m0612_N,m1260_N,m0060_N=m0006_N+m0612_N+m1260_N,
+              m0012_N=m0006_N+m0612_N,
               ISOCountry,Income2019,index) %>%
     summarise(across(where(is.numeric),sum),.by = c(Income2019,index)),
   df_mort_all_NP.lmic %>%
     transmute(m0006_N=m0001_N+m0106_N,m0612_N,m1260_N,m0060_N=m0006_N+m0612_N+m1260_N,
+              m0012_N=m0006_N+m0612_N,
               ISOCountry,Income2019,index) %>%
     summarise(across(where(is.numeric),sum),.by = c(index)) %>%
     mutate(Income2019='Global')
@@ -249,16 +256,19 @@ df_sum_all_NP.byincome<-bind_rows(
     .by = c(Income2019)
   ) %>%
   left_join(pop_region.byincome,by = 'Income2019') %>%
+  mutate(pop_0012=pop_0006+pop_0612) %>%
   mutate(m0006_R=m0006_N/pop_0006,
          m0612_R=m0612_N/pop_0612,
          m1260_R=m1260_N/pop_1260,
-         m0060_R=m0060_N/pop_0060
+         m0060_R=m0060_N/pop_0060,
+         m0012_R=m0012_N/pop_0012
   ) %>%
   pivot_wider(
     names_from = q,                        
     values_from = contains(c("_N", "_R")), 
     names_glue = "{.value}_{q}"           
-  )
+  ) %>%
+  mutate(Income2019=recode(Income2019,'Global'='LMIC'))
 
 rio::export(df_sum_all_DeCoDe.byincome,'rda/df_sum_all_DeCoDe.byincome.rds')
 rio::export(df_sum_all_NP.byincome,'rda/df_sum_all_NP.byincome.rds')

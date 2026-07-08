@@ -2,66 +2,167 @@ init_table2_server <- function(input, output, session) {
   
   # 1. 搬入数据提取逻辑
   table2_matrix_data <- reactive({
+    
     req(input$table2_metric)
     target_metric <- input$table2_metric
     
     # 1. 从 df_master 动态提取基础点估计
-    df_sub <- df_master %>% 
+    df_sub <- df_master %>%
       filter(metric == target_metric) %>%
-      select(ISOCountry, CountryName, ,Income2019,WHORegion,AGEGR, R, N)
+      select(ISOCountry, CountryName, Income2019, WHORegion, AGEGR, R, N)
     
     # 2. 为每个年龄组匹配 95% CI 文本
     # 🛠️【已修复】：修正分位数变量名，由 N_025 / N_975 改为正确的 N_q025 / N_q975
     ci_inc <- RF.res.impute2 %>%
-      reframe(across(c(IR, N), list(q500 = ~quantile(.x, 0.5, na.rm = TRUE), 
-                                    q025 = ~quantile(.x, 0.025, na.rm = TRUE), 
-                                    q975 = ~quantile(.x, 0.975, na.rm = TRUE))), .by = c(ISOCountry, AGEGR)) %>%
-      transmute(ISOCountry = toupper(trimws(ISOCountry)), AGEGR, 
-                R_ci = sprintf("%.1f (%.1f–%.1f)", IR_q500, IR_q025, IR_q975), 
-                N_ci = sprintf("%s (%s–%s)", comma(round(N_q500,0)), comma(round(N_q025,0)), comma(round(N_q975,0))))
+      reframe(
+        across(
+          c(IR, N),
+          list(
+            q500 = ~quantile(.x, 0.5, na.rm = TRUE),
+            q025 = ~quantile(.x, 0.025, na.rm = TRUE),
+            q975 = ~quantile(.x, 0.975, na.rm = TRUE)
+          )
+        ),
+        .by = c(ISOCountry, AGEGR)
+      ) %>%
+      mutate(across(starts_with('IR_'),~round(.x,1)),
+             across(starts_with('N_'),
+                    function(x) {
+                      case_when(
+                        x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                        x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                        TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                      )
+                    })) %>%
+      transmute(
+        ISOCountry = toupper(trimws(ISOCountry)),
+        AGEGR,
+        R_ci = sprintf("%.1f (%.1f–%.1f)", IR_q500, IR_q025, IR_q975),
+        N_ci = sprintf(
+          "%s (%s–%s)",
+          comma(round(N_q500, 0)),
+          comma(round(N_q025, 0)),
+          comma(round(N_q975, 0))
+        )
+      )
     
     # 提取 Hospitalization CI
-    df_hos_base <- df_hos_by_country2_1000 %>% mutate(ISOCountry = toupper(trimws(ISOCountry)))
+    df_hos_base <- df_hos_by_country2_1000 %>%
+      mutate(ISOCountry = toupper(trimws(ISOCountry))) %>%
+      mutate(across(starts_with('Rate_'),~round(.x,1)),
+             across(starts_with('Hos_'),
+                    function(x) {
+                      case_when(
+                        x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                        x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                        TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                      )
+                    }))
+    
     ages_hos <- c("0-<6m", "6-<12m", "0-<12m", "12-<60m", "0-<60m")
     
     list_hos <- lapply(ages_hos, function(a) {
+      
       suffix <- if(a == "12-<60m") "pos" else ""
-      col_R <- paste0("Rate_", a, "_q500", suffix)
+      col_R  <- paste0("Rate_", a, "_q500", suffix)
       col_Rl <- paste0("Rate_", a, "_q025", suffix)
       col_Ru <- paste0("Rate_", a, "_q975", suffix)
-      col_N <- paste0("Hos_", a, "_q500", suffix)
+      col_N  <- paste0("Hos_", a, "_q500", suffix)
       col_Nl <- paste0("Hos_", a, "_q025", suffix)
       col_Nu <- paste0("Hos_", a, "_q975", suffix)
       
       if(col_R %in% names(df_hos_base)) {
-        df_hos_base %>% 
-          select(ISOCountry, r=!!sym(col_R), rl=!!sym(col_Rl), ru=!!sym(col_Ru), n=!!sym(col_N), nl=!!sym(col_Nl), nu=!!sym(col_Nu)) %>%
-          transmute(ISOCountry, AGEGR = a, R_ci = sprintf("%.1f (%.1f-%.1f)", r, rl, ru), N_ci = sprintf("%s (%s–%s)", comma(round(n,0)), comma(round(nl,0)), comma(round(nu,0))))
-      } else { NULL }
+        
+        df_hos_base %>%
+          select(
+            ISOCountry,
+            r  = !!sym(col_R),
+            rl = !!sym(col_Rl),
+            ru = !!sym(col_Ru),
+            n  = !!sym(col_N),
+            nl = !!sym(col_Nl),
+            nu = !!sym(col_Nu)
+          ) %>%
+          transmute(
+            ISOCountry,
+            AGEGR = a,
+            R_ci = sprintf("%.1f (%.1f-%.1f)", r, rl, ru),
+            N_ci = sprintf(
+              "%s (%s–%s)",
+              comma(round(n, 0)),
+              comma(round(nl, 0)),
+              comma(round(nu, 0))
+            )
+          )
+        
+      } else {
+        NULL
+      }
     })
+    
     ci_hos <- bind_rows(list_hos)
     
     # 提取 Mortality CI
     extract_mort_ci <- function(df_raw) {
-      age_map <- c("0-<6m"="0006", "6-<12m"="0612", "12-<60m"="1260", "0-<60m"="0060", "0-<12m"="0012")
-      df_mort_base <- df_raw %>% mutate(ISOCountry = toupper(trimws(ISOCountry)))
+      
+      age_map <- c(
+        "0-<6m"   = "0006",
+        "6-<12m"  = "0612",
+        "12-<60m" = "1260",
+        "0-<60m"  = "0060",
+        "0-<12m"  = "0012"
+      )
+      
+      df_mort_base <- df_raw %>%
+        mutate(ISOCountry = toupper(trimws(ISOCountry))) %>%
+        mutate(across(contains('_N_'),
+                      function(x) {
+                        case_when(
+                          x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                          x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                          TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                        )
+                      }),
+               across(contains('_R_'),~round(.x*100,1)))
       
       lapply(names(age_map), function(a) {
+        
         raw_age <- age_map[a]
+        
         df_mort_base %>%
-          select(ISOCountry, r=!!sym(paste0("m",raw_age,"_R_500")), rl=!!sym(paste0("m",raw_age,"_R_025")), ru=!!sym(paste0("m",raw_age,"_R_975")), n=!!sym(paste0("m",raw_age,"_N_500")), nl=!!sym(paste0("m",raw_age,"_N_025")), nu=!!sym(paste0("m",raw_age,"_N_975"))) %>%
-          transmute(ISOCountry, AGEGR = a, R_ci = sprintf("%.1f (%.1f–%.1f)", r*100, rl*100, ru*100), N_ci = sprintf("%s (%s–%s)", comma(round(n,0)), comma(round(nl,0)), comma(round(nu,0))))
-      }) %>% bind_rows()
+          select(
+            ISOCountry,
+            r  = !!sym(paste0("m", raw_age, "_R_500")),
+            rl = !!sym(paste0("m", raw_age, "_R_025")),
+            ru = !!sym(paste0("m", raw_age, "_R_975")),
+            n  = !!sym(paste0("m", raw_age, "_N_500")),
+            nl = !!sym(paste0("m", raw_age, "_N_025")),
+            nu = !!sym(paste0("m", raw_age, "_N_975"))
+          ) %>%
+          transmute(
+            ISOCountry,
+            AGEGR = a,
+            R_ci = sprintf("%.1f (%.1f–%.1f)", r, rl, ru),
+            N_ci = sprintf(
+              "%s (%s–%s)",
+              comma(round(n, 0)),
+              comma(round(nl, 0)),
+              comma(round(nu, 0))
+            )
+          )
+        
+      }) %>%
+        bind_rows()
     }
     
     ci_mort_att <- extract_mort_ci(df_sum_all_DeCoDe)
     ci_mort_ass <- extract_mort_ci(df_sum_all_NP)
     
     ci_master <- case_when(
-      target_metric == "RSV-associated ALRI incidence" ~ list(ci_inc),
+      target_metric == "RSV-associated ALRI incidence"          ~ list(ci_inc),
       target_metric == "RSV-associated ALRI hospital admission" ~ list(ci_hos),
-      target_metric == "RSV-attributable mortality" ~ list(ci_mort_att),
-      target_metric == "RSV-associated mortality" ~ list(ci_mort_ass)
+      target_metric == "RSV-attributable mortality"             ~ list(ci_mort_att),
+      target_metric == "RSV-associated mortality"               ~ list(ci_mort_ass)
     )[[1]]
     
     # 3. 合并转换大宽表
@@ -70,12 +171,17 @@ init_table2_server <- function(input, output, session) {
     
     df_wide <- df_merge %>%
       pivot_wider(
-        id_cols = c(ISOCountry, CountryName,WHORegion,Income2019),
+        id_cols = c(ISOCountry, CountryName, WHORegion, Income2019),
         names_from = AGEGR,
         values_from = c(R, N, R_ci, N_ci),
         names_glue = "{.value}_{AGEGR}"
       ) %>%
-      left_join(world_sf %>% as.data.frame() %>% select(iso_a3, iso_a2), by = c("ISOCountry" = "iso_a3")) %>%
+      left_join(
+        world_sf %>%
+          as.data.frame() %>%
+          select(iso_a3, iso_a2),
+        by = c("ISOCountry" = "iso_a3")
+      ) %>%
       mutate(Country = ifelse(is.na(CountryName), ISOCountry, CountryName)) %>%
       mutate(
         Country = paste0(
@@ -85,14 +191,16 @@ init_table2_server <- function(input, output, session) {
         )
       ) %>%
       select(Country, ISOCountry, everything(), -CountryName, -iso_a2) %>%
-      relocate(Income2019,WHORegion,.after=Country) %>%
-      mutate(WHORegion=toupper(WHORegion))
+      relocate(Income2019, WHORegion, .after = Country) %>%
+      mutate(WHORegion = toupper(WHORegion))
     
     # 对所有 N_ 开头的点估计列（如 N_0-<6m 等）做 log 转换以适配背景着色
     col_v_n <- names(df_wide)[grepl("^N_[0-9]", names(df_wide))]
-    df_wide <- df_wide %>% mutate(across(all_of(col_v_n), ~log(.x + 1)))
+    df_wide <- df_wide %>%
+      mutate(across(all_of(col_v_n), ~log(.x + 1)))
     
     df_wide
+    
   })
   
   # Table 2 动态标题

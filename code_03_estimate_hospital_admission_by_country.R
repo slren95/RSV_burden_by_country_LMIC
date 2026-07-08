@@ -756,6 +756,65 @@ df_hos_by_country2.long_1000 %>%
   saveRDS("docs/Table_Hospitalisation_1000.rds") %>%
   export_flextable_word('docs/Table_Hospitalisation_1000.docx',orientation='land')
 
+## by income ----
+df_hos_by_country2.byincome<-bind_rows(
+  df_hos_sample_final_1000 %>%
+    select(index,ISOCountry,Income2019,starts_with('pop_'),starts_with('Hos_')) %>%
+    summarise(across(where(is.numeric),sum),.by=c(Income2019,index)),
+  df_hos_sample_final_1000 %>%
+    select(index,ISOCountry,Income2019,starts_with('pop_'),starts_with('Hos_')) %>%
+    summarise(across(where(is.numeric),sum),.by=c(index)) %>% mutate(Income2019='LMIC')
+) %>%
+  mutate(`Rate_0-<60m` = `Hos_0-<60m`/pop_0060,
+         `Rate_0-<12m` = `Hos_0-<12m`/pop_0012,
+         `Rate_0-<6m` = `Hos_0-<6m`/pop_0006,
+         `Rate_6-<12m` = `Hos_6-<12m`/pop_0612,
+         `Rate_12-<60m` = `Hos_12-<60m`/pop_1260) %>%
+  summarise(across(matches('^(Rate_|Hos_)'),list(q500=~quantile(.x,.5),
+                                                 q025=~quantile(.x,.025),
+                                                 q975=~quantile(.x,.975),
+                                                 q500pos=~{
+                                                   pos_x<-.x[.x>0]
+                                                   quantile(pos_x,.5)
+                                                 },
+                                                 q025pos=~{
+                                                   pos_x<-.x[.x>0]
+                                                   quantile(pos_x,.025)
+                                                 },
+                                                 q975pos=~{
+                                                   pos_x<-.x[.x>0]
+                                                   quantile(pos_x,.975)
+                                                 })),.by=c(Income2019)) %>%
+  select(
+    -matches("pos$"),      # 先选所有 _pos 列
+    matches("12\\-<60m.*pos$")  # 再保留 12-<60m 的 _pos
+  ) %>%
+  select(-matches('(Hos|Rate)_12-<60m_q\\d+$')) %>%
+  rename_with(~str_remove(.x,'pos'))
+
+df_hos_by_country2.byincome %>%
+  dplyr::select(Income2019,matches('^(Hos|Rate)')) %>%
+  pivot_longer(cols =matches('^(Hos|Rate)'),names_pattern = '(.*)_(.*)_(.*)',names_to = c('metric','AGEGR','quantile')) %>%
+  mutate(type=recode(quantile,'q500'='est','q025'='lci','q975'='uci')) %>%
+  pivot_wider(id_cols = c(Income2019,AGEGR),names_from = c(metric,type),values_from = value) %>%
+  rename_with(~ str_replace(.x, "^Hos_", "N.")) %>%
+  rename_with(~ str_replace(.x, "^Rate_", "IR.")) %>%
+  mutate(across(starts_with('R.'),~round(.x,2)),
+         across(starts_with('N.'),
+                function(x) {
+                  case_when(
+                    x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                    x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                    TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                  )
+                })) %>%
+  mutate(N=sprintf('%s (%s–%s)', N.est, N.lci, N.uci),
+         R=sprintf('%.1f (%.1f–%.1f)',IR.est, IR.lci, IR.uci),
+         str=paste0(N,'\n',R)) %>%
+  pivot_wider(id_cols = c(Income2019),names_from = AGEGR,values_from = str) %>%
+  transmute(`Income Level`=paste0(Income2019,if_else(Income2019=='LMIC','','IC')),`0-<6m`, `6-<12m`,`0-<12m`,`12-<60m`, `0-<60m`) %T>%
+  rio::export('docs/Table_Hospitalisation.byincome.rds') %>%
+  export_flextable_word('docs/Table_Hospitalisation.byincome.docx',orientation='land')
 
 save.image(file='rda/code_03_estimate_hospital_admission_by_country.RData')
 

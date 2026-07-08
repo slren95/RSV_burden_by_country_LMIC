@@ -1,0 +1,47 @@
+
+==================== Top 5 - V_0012 (0-<12m) ====================
+
+Metric: Mortality rate
+  Range (min-max): 4.5 - 358.3
+  Top 5:
+                   Country V_0012              0-<12m
+1                  Nigeria  358.3 358.3 (172.5–656.3)
+2                  Somalia  346.4 346.4 (182.2–657.2)
+3                     Chad  337.8 337.8 (169.8–668.5)
+4 Central African Republic  336.5 336.5 (180.1–624.6)
+5             Sierra Leone  319.4 319.4 (175.5–595.0)
+
+Metric: Number of deaths
+  Range (min-max): 0 - 25100
+  Top 5:
+           Country V_0012              0-<12m
+1          Nigeria  25100 25100 (12100–45900)
+2            India  24100 24100 (14900–41500)
+3         Pakistan  10600  10600 (5800–19100)
+4 Congo, Dem. Rep.   8000   8000 (4300–14600)
+5         Ethiopia   4600    4600 (2700–7700)
+
+
+
+==================== Top 5 - V_0060 (0-<60m) ====================
+
+Metric: Mortality rate
+  Range (min-max): 1.1 - 120.9
+  Top 5:
+                   Country V_0060             0-<60m
+1                  Somalia  120.9 120.9 (62.6–233.8)
+2                  Nigeria  120.8 120.8 (57.2–225.3)
+3                     Chad  115.8 115.8 (57.3–233.9)
+4 Central African Republic  111.7 111.7 (58.9–211.1)
+5             Sierra Leone  106.9 106.9 (57.9–202.8)
+
+Metric: Number of deaths
+  Range (min-max): 0 - 40400
+  Top 5:
+           Country V_0060              0-<60m
+1          Nigeria  40400 40400 (19100–75300)
+2            India  35000 35000 (21400–61200)
+3         Pakistan  17000  17000 (9200–31200)
+4 Congo, Dem. Rep.  12900  12900 (6800–23900)
+5         Ethiopia   7300   7300 (4300–12600)
+
