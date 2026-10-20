@@ -189,18 +189,15 @@ init_map_server <- function(input, output, session) {
   })
   
   output$map <- renderLeaflet({
-    output$map <- renderLeaflet({
-      leaflet() %>%
-        #addTiles("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png") %>%
-        addTiles(
-          urlTemplate = paste0(
-            "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=",
-            carto_key
-          ),
-          options = tileOptions(subdomains = c("a", "b", "c", "d"))
-        ) %>%
-        setView(lng = 20, lat = 10, zoom = 2)
-    })
+    leaflet() %>%
+      addTiles(
+        urlTemplate = paste0(
+          "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=",
+          carto_key
+        ),
+        options = tileOptions(subdomains = c("a", "b", "c", "d"))
+      ) %>%
+      setView(lng = 20, lat = 10, zoom = 2)
   })
   
   observe({
