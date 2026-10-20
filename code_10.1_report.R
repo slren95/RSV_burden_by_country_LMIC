@@ -4,7 +4,8 @@ library(tidyverse)
 library(flextable)
 
 # Tables ----
-source_files <- dir('docs/', pattern='Table_.*\\.rds', full.names = TRUE)[c(2,1,3,4)]
+
+source_files <- dir('docs/', pattern='Table_[^.]*\\.rds$',full.names = TRUE)[c(2,1,3,4)]
 
 table_titles <- c(
   "Table 1. RSV-associated ALRI incidence by country",

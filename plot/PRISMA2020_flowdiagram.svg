@@ -276,7 +276,7 @@
           <polygon fill="#ffffff" stroke="#000000" points="878.5,-401.6006 626.5,-401.6006 626.5,-264.3994 878.5,-264.3994 878.5,-401.6006"/>
           <text text-anchor="middle" x="752.5" y="-387" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Reports excluded:</text>
           <text text-anchor="middle" x="752.5" y="-372.6" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Duplicate data (n = 3)</text>
-          <text text-anchor="middle" x="752.5" y="-358.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Ineligible age groups (n = 9)</text>
+          <text text-anchor="middle" x="752.5" y="-358.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Ineligible age groups (n = 10)</text>
           <text text-anchor="middle" x="752.5" y="-343.8" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">No lab confirmation of RSV (n = 3)</text>
           <text text-anchor="middle" x="752.5" y="-329.4" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">No primary disease burden data (n = 16)</text>
           <text text-anchor="middle" x="752.5" y="-315" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">No separate data before 2020 (n = 14)</text>
@@ -293,9 +293,9 @@
         <a xlink:title="New studies included in review">
           <polygon fill="none" stroke="#000000" points="590.5,-180 338.5,-180 338.5,-108 590.5,-108 590.5,-180"/>
           <text text-anchor="middle" x="464.5" y="-162" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Studies included in review</text>
-          <text text-anchor="middle" x="464.5" y="-147.6" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">(n = 17)</text>
+          <text text-anchor="middle" x="464.5" y="-147.6" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">(n = 16)</text>
           <text text-anchor="middle" x="464.5" y="-133.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Studies identified via RSV GEN</text>
-          <text text-anchor="middle" x="464.5" y="-118.8" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">(n = 3)</text>
+          <text text-anchor="middle" x="464.5" y="-118.8" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">(n = 2)</text>
         </a>
       </g>
     </g>
@@ -358,9 +358,10 @@
       <title>18</title>
       <g id="a_node21">
         <a xlink:title="Reports excluded (other)">
-          <polygon fill="#dcdcdc" stroke="#dcdcdc" points="1454.5,-351.3005 1202.5,-351.3005 1202.5,-314.6995 1454.5,-314.6995 1454.5,-351.3005"/>
-          <text text-anchor="middle" x="1328.5" y="-336.6" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Reports excluded:</text>
-          <text text-anchor="middle" x="1328.5" y="-322.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Not reporting rate outcomes (n = 16)</text>
+          <polygon fill="#dcdcdc" stroke="#dcdcdc" points="1454.5,-360 1202.5,-360 1202.5,-306 1454.5,-306 1454.5,-360"/>
+          <text text-anchor="middle" x="1328.5" y="-343.8" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Reports excluded:</text>
+          <text text-anchor="middle" x="1328.5" y="-329.4" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Not reporting rate outcomes (n = 16)</text>
+          <text text-anchor="middle" x="1328.5" y="-315" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Duplicate data (n = 1)</text>
         </a>
       </g>
     </g>
@@ -371,7 +372,7 @@
         <a xlink:title="Total studies included in review">
           <polygon fill="#dcdcdc" stroke="#dcdcdc" points="590.5,-72 338.5,-72 338.5,0 590.5,0 590.5,-72"/>
           <text text-anchor="middle" x="464.5" y="-39.6" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">Total studies included in</text>
-          <text text-anchor="middle" x="464.5" y="-25.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">validation (n = 58)</text>
+          <text text-anchor="middle" x="464.5" y="-25.2" font-family="Helvetica,sans-Serif" font-size="12.00" fill="#000000">validation (n = 56)</text>
         </a>
       </g>
     </g>

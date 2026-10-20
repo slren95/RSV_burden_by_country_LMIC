@@ -255,3 +255,95 @@ df_scaling<-df_limi_final_withNO.INC %>%
   arrange(AGEGR,Income2019)
 
 # Hospitalisation NO and rate ----
+
+
+
+# legend 
+# 创建 dummy 数据，包含所有需要展示的 Color 和 Shape 分类
+# 1. 创建两个独立长度的数据框（或者直接用扩展组合）
+df_country <- data.frame(
+  Country = factor(names(country_colors), levels = names(country_colors)),
+  x = 1, y = 1,
+  xmin = 0.8, xmax = 1.2, # X 轴范围
+  ymin = 0.8, ymax = 1.2  # Y 轴范围
+)
+
+df_type <- data.frame(
+  valid_type2 = factor(names(type_shapes), levels = names(type_shapes)),
+  x = 1, y = 1
+)
+
+# ==============================================================================
+# 3. 构建包含“十字线 + 散点”的独立图例 p_legend
+# ==============================================================================
+p_for_legend <- ggplot() +
+  # --- 1. 竖直误差棒 (Y 轴方向) ---
+  geom_linerange(
+    data = df_country, 
+    aes(x = x, ymin = ymin, ymax = ymax, color = Country), 
+    linewidth = 0, alpha = 0
+  ) +
+  # --- 2. 水平误差棒 (X 轴方向) ---
+  geom_errorbarh(
+    data = df_country, 
+    aes(y = y, xmin = xmin, xmax = xmax, color = Country), 
+    linewidth = 0, alpha = 0, height = 0 # height=0 保证线段两头没有横帽，纯直线
+  ) +
+  # --- 3. 中心散点 ---
+  geom_point(
+    data = df_country, 
+    aes(x = x, y = y, color = Country), 
+    size = 0, alpha = .5
+  ) +
+  
+  # --- 4. Study Type 形状图层 ---
+  geom_point(
+    data = df_type, 
+    aes(x = x, y = y, shape = valid_type2), 
+    size = 0, alpha = .5
+  ) +
+  
+  # 手动设置标度
+  scale_color_manual(
+    values = country_colors, 
+    name = "Country", 
+    drop = FALSE
+  ) +
+  scale_shape_manual(
+    values = type_shapes, 
+    labels = type_labels,
+    name = "Study Type", 
+    drop = FALSE
+  ) +
+  theme_void() + # 移除所有坐标轴、背景和外框
+  theme(
+    plot.margin = margin(0, 0, 0, 0, "pt"), # 四周边距全部归零
+    legend.position = "left",               # 图例靠左贴紧
+    legend.box.margin = margin(0, 0, 0, 0, "pt")
+  )+
+  
+  # ==============================================================================
+# 关键点：通过 override.aes 激活十字线 + 散点的组合 Key
+# ==============================================================================
+guides(
+  color = guide_legend(
+    order = 1, 
+    ncol = 1, 
+    direction = "vertical",
+    override.aes = list(
+      linewidth = 0.6, # 十字交叉线的粗细
+      size = 3,        # 中心圆点的大小
+      alpha = 1        # 保证可见
+    )
+  ),
+  shape = guide_legend(
+    order = 2, 
+    ncol = 1, 
+    direction = "vertical",
+    override.aes = list(
+      size = 3.5, 
+      alpha = 1
+    )
+  )
+)
+p_legend<-ggdraw(cowplot::get_legend(p_for_legend))

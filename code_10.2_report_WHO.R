@@ -2,6 +2,7 @@ rm(list=ls())
 library(officer)
 library(tidyverse)
 library(flextable)
+library(openxlsx)
 
 # Tables ----
 source_files <- dir('docs/', pattern='Table_.*\\.rds', full.names = TRUE)[c(2,1,3,4)]
@@ -353,3 +354,131 @@ export_images_word_ratio <- function(
 
 export_images_word_ratio(tiff_ratio$path,tiff_ratio$caption,tiff_ratio$note,start_index = 32,output_file = "docs/Figures_ratio_map.docx")
 
+# Paper Manuscript ----
+export_all_images_word_manuscript <- function(
+    df, 
+    output_file = "docs/Manuscript_Figures_NR_map.docx",
+    width = 9.2,  
+    height = 5.2
+) {
+  # 1. 统一读取模板
+  doc <- read_docx('../paper/template.docx')
+  
+  # 定义横向页面属性
+  ls_section <- prop_section(
+    page_size = page_size(orient = "landscape")
+  )
+  
+  # 2. 定义大标题的匹配关系
+  metric_titles <- c(
+    'inc'      = 'RSV-associated ALRI incidence',
+    'hos'      = 'RSV-associated ALRI hospital admission',
+    'mort.ass' = 'RSV-associated all-cause deaths',
+    'mort.att' = 'RSV-attributable all-cause deaths'
+  )
+  
+  # 定义每个 metric 的基础起始索引
+  start_indices <- c("inc" = 8, "hos" = 17, "mort.att" = 26, "mort.ass" = 35)
+  
+  # 3. 按照指定的 metric 顺序或数据中存在的 metric 顺序进行循环
+  # 建议显式指定顺序，确保生成的 Word 排版顺序如：inc -> hos -> mort.ass -> mort.att
+  available_metrics <- intersect(names(metric_titles), unique(df$metric))
+  
+  for (m in available_metrics) {
+    
+    # 过滤出当前 metric 的所有图片数据
+    sub_df <- df %>% filter(metric == m)
+    if (nrow(sub_df) == 0) next
+    
+    # 添加大标题 (Heading 1)
+    head1 <- metric_titles[m]
+    doc <- doc %>% body_add_par(head1, style = "heading 2")
+    
+    # 获取当前组的起始 Figure 编号
+    base_idx <- start_indices[m]
+    
+    # 4. 循环添加该分组下的每张图片
+    for (i in seq_len(nrow(sub_df))) {
+      
+      fig_id <- base_idx + i - 1
+      caption <- paste0('Figure S', fig_id, '. ', sub_df$caption[i])
+      note <- sub_df$note[i]
+      
+      # 依次添加标题、图片、脚注
+      doc <- doc %>%
+        body_add_par(caption, style = "heading 3") %>%
+        body_add_img(src = sub_df$path[i], width = width, height = height) %>%
+        body_add_fpar(fpar(ftext(note, prop = fp_text(font.family = "Calibri", font.size = 10.5))))
+      
+      # 使用分节块包裹此图，确保其维持横向
+      doc <- doc %>% 
+        body_end_block_section(block_section(property = ls_section))
+    }
+  }
+  
+  # 5. 强制将最后一节也设为横向，防止尾部吐出多余的纵向空白页
+  doc <- doc %>% body_set_default_section(ls_section)
+  
+  # 6. 保存并输出
+  message("Saving document to: ", output_file)
+  print(doc, target = output_file)
+  #return(doc)
+}
+
+# ==================== 外层调用部分 ====================
+# 先过滤好数据，然后一次性塞入新函数中
+tiff_NR %>%
+  filter(!(age %in% c('0–<12 months') & type=='R')) %>% 
+  export_all_images_word_manuscript(output_file = "docs/Manuscript_Figures_NR_map.docx")
+
+# Data to Andy ----
+
+source_files2 <- dir('docs/', pattern='Table_.*\\.rds', full.names = TRUE) %>%
+  grep("byincome", ., invert = TRUE, value = TRUE) %>% .[c(2,1,3)]
+
+# ---- sheet names (short) ----
+table_titles2 <- c(
+  "RSV-associated ALRI",
+  "RSV-associated ALRI hospital",
+  "RSV-attributable mortality"
+)
+
+# ---- full titles for Readme ----
+full_titles <- c(
+  "RSV-associated ALRI incidence by country",
+  "RSV-associated ALRI hospital admission by country",
+  "RSV-attributable all-cause deaths by country"
+)
+
+# ---- units ----
+table_units <- c(
+  "per 1000 person-years",
+  "per 1000 person-years",
+  "per 100000 person-years"
+)
+
+wb <- createWorkbook()
+
+# ---- Readme sheet ----
+addWorksheet(wb, "Readme")
+readme <- data.frame(
+  Sheet     = table_titles2,
+  FullTitle = full_titles,
+  RateUnit  = table_units,
+  stringsAsFactors = FALSE
+)
+writeData(wb, "Readme", readme)
+setColWidths(wb, "Readme", cols = 1:4, widths = c(30, 55, 30, 45))
+
+# bold header
+addStyle(wb, "Readme",
+         createStyle(textDecoration = "bold"),
+         rows = 1, cols = 1:4, gridExpand = TRUE)
+
+# ---- data sheets ----
+walk2(source_files2, table_titles2, \(f, t) {
+  addWorksheet(wb, t)
+  writeData(wb, t, readRDS(f))
+})
+
+saveWorkbook(wb, "docs/RSV_burdern_tables.xlsx", overwrite = TRUE)

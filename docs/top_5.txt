@@ -54,3 +54,45 @@
 3. Pakistan 10,583 (5,826–19,069)
 4. Congo, Dem. Rep. 8,027 (4,308–14,610)
 5. Ethiopia 4,564 (2,717–7,736)
+
+ Mort_2_inc 
+ 1. Sierra Leone 2.1 (0.8–5.5) %
+2. Central African Republic 2.0 (0.7–5.5) %
+3. Chad 1.9 (0.7–5.3) %
+4. Somalia 1.8 (0.6–5.4) %
+5. South Sudan 1.7 (0.6–4.7) %
+
+ Mort_2_inc 0-<12m 
+ 1. Sierra Leone 2.1 (0.8–5.5) %
+2. Central African Republic 2.0 (0.7–5.5) %
+3. Chad 1.9 (0.7–5.3) %
+4. Somalia 1.8 (0.6–5.4) %
+5. South Sudan 1.7 (0.6–4.7) %
+
+ Mort_2_inc 0-<60m 
+ 1. Nigeria 1.1 (0.4–2.8) %
+2. Sierra Leone 1.0 (0.4–2.7) %
+3. Central African Republic 1.0 (0.4–2.7) %
+4. Somalia 0.9 (0.3–2.7) %
+5. Chad 0.9 (0.3–2.7) %
+
+ Mort_2_inc 0-<12m 
+ 1. Sierra Leone 2.1 (0.8–5.5) %
+2. Central African Republic 2.0 (0.7–5.5) %
+3. Chad 1.9 (0.7–5.3) %
+4. Somalia 1.8 (0.6–5.4) %
+5. South Sudan 1.7 (0.6–4.7) %
+
+ Mort_2_inc 0-<60m 
+ 1. Nigeria 1.1 (0.4–2.8) %
+2. Sierra Leone 1.0 (0.4–2.7) %
+3. Central African Republic 1.0 (0.4–2.7) %
+4. Somalia 0.9 (0.3–2.7) %
+5. Chad 0.9 (0.3–2.7) %
+
+ Mort_2_inc 0-<12m 
+ 1. Sierra Leone 2.1 (0.8–5.5) %
+2. Central African Republic 2.0 (0.7–5.5) %
+3. Chad 1.9 (0.7–5.3) %
+4. Somalia 1.8 (0.6–5.4) %
+5. South Sudan 1.7 (0.6–4.7) %

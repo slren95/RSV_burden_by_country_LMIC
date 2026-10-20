@@ -8,6 +8,11 @@ library(ggh4x)
 library(janitor)
 library(flextable)
 library(psych)
+library(survinger)
+library(cowplot)
+library(magrittr)
+
+source('functions.R')
 
 
 # Functions ----
@@ -109,6 +114,7 @@ c(
   "T091", "T145", "T163"
 )
 
+
 # 1️⃣Main validation analysis ----
 
 df_valid.main<-df_valid_all %>%
@@ -130,6 +136,32 @@ df_valid.main<-df_valid_all %>%
     }
   }) %>%
   mutate(gid= paste(Country, AGEGR, metric,valid_type,sep = "_"))
+
+# NEW ADDED remove duplicate study
+export(df_valid.main,'validation/df_valid.main.xlsx')
+df_valid.main_copy<-import('validation/df_valid.main - 副本.xlsx') %>%
+  mutate(uid=paste(Country, AGEGR, metric,SID,sep = "_"))
+
+duplicated(df_valid.main_copy$uid)
+
+# replace with no duplicate study
+df_valid.main<-df_valid.main_copy %>%
+  filter(REMOVE_DUE_TO_DUP==0) %>%
+  group_split(metric,AGEGR,Country) %>%
+  map_dfr(~{
+    df<-.
+    if(df$metric[1] %in% c('mort.att','mort.ass')){
+      return(df)
+    }
+    if(any(df$MultiCenter==1)){
+      return(df)
+    }
+    if(all(df$MultiCenter==0) & nrow(df)>1) {
+      if(length(unique(df$Location))>1)
+        return(df)
+    }
+  })
+
 
 #df_valid.main %>% filter(single_multi_n>1) %>% view()
 
@@ -261,17 +293,12 @@ plots_inc<-df_meta_plot_main %>%
       facet_wrap(~Country_AGEGR)
   })
 
-plots_inc[4:9] %>%
-  wrap_plots(ncol = 3, guides = "collect",axes = 'collect_x') &
+plots_inc[c(2:7,1)] %>%
+  wrap_plots(nrow = 3, guides = "collect",axes = 'collect_x') &
   theme_bw() 
 
-ggsave('plot/Meta_main_inc_0_6m.tiff', width = 12,height = 6,dpi = 300)
+ggsave('plot/Meta_main_inc.tiff', width = 12,height = 6,dpi = 300)
 
-plots_inc[c(10:15,1:3)] %>%
-  wrap_plots(ncol = 3, guides = "collect",axes = 'collect_x') &
-  theme_bw() 
-
-ggsave('plot/Meta_main_inc_other.tiff', width = 12,height = 6,dpi = 300)
 
 ## hos ----
 plots_hos<-df_meta_plot_main %>%
@@ -312,8 +339,8 @@ plots_hos<-df_meta_plot_main %>%
       facet_wrap(~Country_AGEGR)
   })
 
-plots_hos[1:7] %>%
-  wrap_plots(ncol = 3, guides = "collect",axes = 'collect_x') &
+plots_hos[1:4] %>%
+  wrap_plots(nrow = 2, guides = "collect",axes = 'collect_x') &
   theme_bw() 
 
 ggsave('plot/Meta_main_hos.tiff', width = 12,height = 6,dpi = 300)
@@ -321,7 +348,7 @@ ggsave('plot/Meta_main_hos.tiff', width = 12,height = 6,dpi = 300)
 
 # 2️⃣Sensitive validatiuon analysis ----
 
-df_valid.sens<-df_valid_all %>%
+df_valid.sens_old<-df_valid_all %>%
   filter(from!='internal') %>%
   relocate(metric,AGEGR,Country) %>%
   arrange(metric,AGEGR,Country) %>%
@@ -340,7 +367,27 @@ df_valid.sens<-df_valid_all %>%
         return(df  %>% mutate(valid_type='meta'))
     }
   }) %>%
-  mutate(gid= paste(Country, AGEGR, metric,valid_type,sep = "_"))
+  mutate(gid= paste(Country, AGEGR, metric,valid_type,sep = "_"),
+         uid=paste(Country, AGEGR, metric,SID,sep = "_"))
+
+# remove duplicated study ----
+df_valid.sens<-df_valid.sens_old %>%
+  left_join(df_valid.main_copy %>% select(uid,REMOVE_DUE_TO_DUP)) %>%
+  filter(REMOVE_DUE_TO_DUP==0) %>%
+  group_split(metric,AGEGR,Country) %>%
+  map_dfr(~{
+    df<-.
+    if(df$metric[1] %in% c('mort.att','mort.ass')){
+      return(df)
+    }
+    if(any(df$MultiCenter==1)){
+      return(df)
+    }
+    if(all(df$MultiCenter==0) & nrow(df)>1) {
+      if(length(unique(df$Location))>1)
+        return(df)
+    }
+  })
 
 df_sens_split<-split(df_valid.sens,df_valid.sens[,'gid'],drop = T)
 
@@ -457,27 +504,28 @@ plot_sens<-df_meta_plot_sens %>%
       facet_wrap(~Country_AGEGR)
   })
 
-plot_sens[[1]] <- plot_sens[[1]] + labs(tag = "A")
-plot_sens[[3]] <- plot_sens[[3]] + labs(tag = "B")
+# plot_sens[[1]] <- plot_sens[[1]] + labs(tag = "A")
+# plot_sens[[3]] <- plot_sens[[3]] + labs(tag = "B")
+# 
+# left_panel <- wrap_plots(
+#   plot_sens[c(1,2,4)],
+#   ncol = 1,
+#   guides = "collect",
+#   axes = "collect_x"
+# )
+# 
+# right_panel <- plot_sens[[3]]
+# 
+# (left_panel + right_panel) +
+#   plot_layout(widths = c(3,1)) &
+#   theme(
+#     plot.tag = element_text(size = 14),
+#     plot.tag.position = c(0.02, 0.98)
+#   )
+# ggsave('plot/Meta_sens.tiff', width = 8,height = 8,dpi = 300)
 
-left_panel <- wrap_plots(
-  plot_sens[c(1,2,4)],
-  ncol = 1,
-  guides = "collect",
-  axes = "collect_x"
-)
-
-right_panel <- plot_sens[[3]]
-
-(left_panel + right_panel) +
-  plot_layout(widths = c(3,1)) &
-  theme(
-    plot.tag = element_text(size = 14),
-    plot.tag.position = c(0.02, 0.98)
-  )
-
-ggsave('plot/Meta_sens.tiff', width = 8,height = 8,dpi = 300)
-
+plot_sens[[1]]
+ggsave('plot/Meta_sens.tiff', width = 8,height = 4,dpi = 300)
 
 # 3️⃣Model estimate ----
 
@@ -505,7 +553,7 @@ df_model_long<-df_model %>%
   ) %>%
   rename(model_est=model_500,model_lci=model_025,model_uci=model_975)
 
-# Validation Plot ----
+# Validation line range Plot ----
 # 编写一个简易的 Interval Score 计算函数
 winkler_score <- function(actual, lower, upper, alpha = 0.05) {
   width <- upper - lower
@@ -543,7 +591,7 @@ calc_overlap_coefficient <- function(L1, U1, L2, U2,log=F) {
 }
 
 # 示例：你的预测区间 [0.04, 0.08]，别人验证集区间 [0.05, 0.12]
-calc_overlap_coefficient(0.04, 0.08, 0.05, 0.12,log = T) 
+calc_overlap_coefficient(0.04, 0.08, 0.05, 0.12,log = F) 
 # 输出结果：0.75 (说明重叠了较窄区间的 75%)
 
 calc_jaccard_index <- function(L1, U1, L2, U2) {
@@ -604,7 +652,8 @@ df_final_main %>% select(winkler_ratio:jaccard_index) %>%
 
 df_plot_main <- df_final_main %>% 
   select(SID,ISOCountry, Country, AGEGR, metric,valid_type,starts_with("compare_"), starts_with("model_"),overlap) %>% 
-  filter(!is.na(model_est))
+  filter(!is.na(model_est)) %>%
+  mutate(valid_type2=if_else(metric %in% c('mort.att','mort.ass'),'Mortality Study',valid_type))
 
 df_plot_main_long <- df_plot_main %>% 
   pivot_longer(c(compare_est:model_uci), names_to = c("source", ".value"), names_sep = "_") %>% 
@@ -636,7 +685,9 @@ df_final_sens <- imap_dfr(df_sens_split, ~{
 df_plot_sens <- df_final_sens %>% 
   select(SID,ISOCountry, Country, AGEGR, metric,valid_type,starts_with("compare_"), starts_with("model_"),overlap) %>% 
   filter(!is.na(model_est)) %>%
-  mutate(AGEGR=factor(AGEGR,levels=c('0-<6m','6-<12m','0-<12m','12-<60m','0-<60m')))
+  mutate(AGEGR=factor(AGEGR,levels=c('0-<6m','6-<12m','0-<12m','12-<60m','0-<60m'))) %>%
+  mutate(valid_type2=if_else(metric %in% c('mort.att','mort.ass'),'Mortality Study',valid_type))
+  
 
 df_plot_sens_long <- df_plot_sens %>% 
   pivot_longer(c(compare_est:model_uci), names_to = c("source", ".value"), names_sep = "_") %>% 
@@ -646,7 +697,7 @@ df_plot_sens_long <- df_plot_sens %>%
                         valid_type=='meta'~'Cross-study\nmeta-estimates')) %>%
   mutate(type=factor(type,levels=c('Model-estimated','Multicenter-study\nreported estimates','Cross-study\nmeta-estimates')))
 
-## overlap coefficient ----
+# Overlap coefficient ----
 
 
 summary(df_final_main$winkler_ratio)
@@ -662,72 +713,101 @@ df_final_main %>% count(metric)
 df_final_main %>%
   group_by(metric) %>%
   summarise(
+    n=n(),
     median_overlap = median(overlap_coef, na.rm = TRUE),
     Q1_overlap = quantile(overlap_coef, 0.25, na.rm = TRUE),
     Q3_overlap = quantile(overlap_coef, 0.75, na.rm = TRUE),
     IQR_overlap = IQR(overlap_coef, na.rm = TRUE)
   )
 
-# # A tibble: 4 × 5
-# metric   median_overlap Q1_overlap Q3_overlap IQR_overlap
-# <chr>             <dbl>      <dbl>      <dbl>       <dbl>
-#   1 hos               0.211     0.0982      0.478       0.379
-# 2 inc               0.430     0.199       0.747       0.548
-# 3 mort.ass          0.571     0.336       0.657       0.321
-# 4 mort.att          0.676     0.676       0.676       0  
+# # A tibble: 4 × 6
+# metric       n median_overlap Q1_overlap Q3_overlap IQR_overlap
+# <chr>    <int>          <dbl>      <dbl>      <dbl>       <dbl>
+#   1 hos         16          0.171     0.0507      0.412       0.362
+# 2 inc         15          0.536     0.306       0.888       0.582
+# 3 mort.ass     7          0.548     0.293       0.601       0.307
+# 4 mort.att     1          0.484     0.484       0.484       0   
 
 df_final_sens %>%
   group_by(metric) %>%
   summarise(
+    n=n(),
     median_overlap = median(overlap_coef, na.rm = TRUE),
     Q1_overlap = quantile(overlap_coef, 0.25, na.rm = TRUE),
     Q3_overlap = quantile(overlap_coef, 0.75, na.rm = TRUE),
     IQR_overlap = IQR(overlap_coef, na.rm = TRUE)
   )
 
-# # A tibble: 4 × 5
-# metric   median_overlap Q1_overlap Q3_overlap IQR_overlap
-# <chr>             <dbl>      <dbl>      <dbl>       <dbl>
-#   1 hos               0.255      0.232      0.971       0.739
-# 2 inc               0.418      0.320      0.613       0.294
-# 3 mort.ass          0.571      0.336      0.657       0.321
-# 4 mort.att          0.676      0.676      0.676       0    
+# A tibble: 4 × 6
+# metric       n median_overlap Q1_overlap Q3_overlap IQR_overlap
+# <chr>    <int>          <dbl>      <dbl>      <dbl>       <dbl>
+#   1 hos          4          0.211     0.0637      0.515       0.452
+# 2 inc          4          0.550     0.487       0.673       0.186
+# 3 mort.ass     7          0.548     0.293       0.601       0.307
+# 4 mort.att     1          0.484     0.484       0.484       0     
 
 
 ## inc ----
 df_plot_main_long %>% 
   filter(metric=='inc') %>%
+  mutate(overlap_factor = factor(overlap, levels = c(TRUE, FALSE))) %>%
   ggplot(aes(Country,y = est,colour = type)) +
   geom_pointrange(
     aes(ymin = lci, ymax= uci,linetype = factor(overlap,levels=c(T,F)),shape=factor(overlap,levels=c(T,F))),
-    position = position_dodge(.55),
+    position = position_dodge(.55),show.legend = TRUE,size=.3
   ) +
-  facet_grid2(. ~ AGEGR, scales = "free", space = "free_x", independent = "y")+
+  facet_grid2(. ~ AGEGR, scales = "free", space = "free_x", independent = "none")+
   scale_color_lancet(name = NULL)+
-  scale_linetype_discrete(name = NULL,labels = c("Overlapping", "Non-overlapping")) +
-  scale_shape_manual(name = NULL,values=c(19,21),labels = c("Overlapping", "Non-overlapping"))+
-  labs(x = NULL, y = "RSV-associated ALRI incidence rate\n(/1,000 person-years)") +
+  # 1. 在这里加上 drop = FALSE
+  scale_linetype_discrete(
+    name = NULL,
+    labels = c("Overlapping", "Non-overlapping"),
+    drop = FALSE
+  ) +
+  # 2. 在这里也加上 drop = FALSE，并补齐 values 映射
+  scale_shape_manual(
+    name = NULL,
+    values = c("TRUE" = 19, "FALSE" = 21),
+    labels = c("Overlapping", "Non-overlapping"),
+    drop = FALSE
+  ) +
+  labs(x = NULL, y = "RSV-associated ALRI incidence rate\n(/1,000 person-years)",
+       title='Main validation analysis') +
   theme_bw() +
+  coord_cartesian(ylim=c(0,500))+
   theme(
     legend.position = "top",
     legend.text = element_text(hjust = 0.5),
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
-ggsave('plot/Valid_main_inc.tiff', width = 10,height = 6,dpi = 300)
+ggsave('plot/Valid_inc_main.tiff', width = 10,height = 6,dpi = 300)
 
 df_plot_sens_long %>% 
   filter(metric=='inc') %>%
+  mutate(overlap_factor = factor(overlap, levels = c(TRUE, FALSE))) %>%
   ggplot(aes(Country,y = est,colour = type)) +
   geom_pointrange(
     aes(ymin = lci, ymax= uci,linetype = factor(overlap,levels=c(T,F)),shape=factor(overlap,levels=c(T,F))),
-    position = position_dodge(.55),
+    position = position_dodge(.55),show.legend = TRUE,size=.3
   ) +
-  facet_grid2(. ~ AGEGR, scales = "free", space = "free_x", independent = "y")+
+  facet_grid2(. ~ AGEGR, scales = "free", space = "free_x", independent = "none")+
   scale_color_lancet(name = NULL)+
-  scale_linetype_discrete(name = NULL,labels = c("Overlapping", "Non-overlapping")) +
-  scale_shape_manual(name = NULL,values=c(19,21),labels = c("Overlapping", "Non-overlapping"))+
-  labs(x = NULL, y = "RSV-associated ALRI incidence rate\n(/1,000 person-years)") +
+  scale_linetype_discrete(
+    name = NULL,
+    labels = c("Overlapping", "Non-overlapping"),
+    drop = FALSE
+  ) +
+  # 2. 在这里也加上 drop = FALSE，并补齐 values 映射
+  scale_shape_manual(
+    name = NULL,
+    values = c("TRUE" = 19, "FALSE" = 21),
+    labels = c("Overlapping", "Non-overlapping"),
+    drop = FALSE
+  ) +
+  labs(x = NULL, y = "RSV-associated ALRI incidence rate\n(/1,000 person-years)",
+       title='Sensitivity validation analysis') +
+  coord_cartesian(ylim=c(0,400))+
   theme_bw() +
   theme(
     legend.position = "top",
@@ -735,7 +815,7 @@ df_plot_sens_long %>%
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
-ggsave('plot/Valid_sens_inc.tiff', width = 10,height = 6,dpi = 300)
+ggsave('plot/Valid_inc_sens.tiff', width = 10,height = 6,dpi = 300)
 
 ## hos ----
 df_plot_main_long %>% 
@@ -743,13 +823,25 @@ df_plot_main_long %>%
   ggplot(aes(Country,y = est,colour = type)) +
   geom_pointrange(
     aes(ymin = lci, ymax= uci,linetype = factor(overlap,levels=c(T,F)),shape=factor(overlap,levels=c(T,F))),
-    position = position_dodge(.55),
+    position = position_dodge(.55),size=.3
   ) +
-  facet_grid2(. ~ AGEGR, scales = "free", space = "free_x", independent = "y")+
+  facet_grid2(. ~ AGEGR, scales = "free", space = "free_x", independent = "none")+
   scale_color_lancet(name = NULL)+
-  scale_linetype_discrete(name = NULL,labels = c("Overlapping", "Non-overlapping")) +
-  scale_shape_manual(name = NULL,values=c(19,21),labels = c("Overlapping", "Non-overlapping"))+
-  labs(x = NULL, y = "RSV-associated ALRI hospital admission rate\n(/1,000 person-years)") +
+  scale_linetype_discrete(
+    name = NULL,
+    labels = c("Overlapping", "Non-overlapping"),
+    drop = FALSE
+  ) +
+  # 2. 在这里也加上 drop = FALSE，并补齐 values 映射
+  scale_shape_manual(
+    name = NULL,
+    values = c("TRUE" = 19, "FALSE" = 21),
+    labels = c("Overlapping", "Non-overlapping"),
+    drop = FALSE
+  ) +
+  labs(x = NULL, y = "RSV-associated ALRI hospital admission rate\n(/1,000 person-years)",
+       title='Main validation analysis') +
+  coord_cartesian(ylim=c(0,60))+
   theme_bw() +
   theme(
     legend.position = "top",
@@ -757,20 +849,32 @@ df_plot_main_long %>%
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
-ggsave('plot/Valid_main_hos.tiff', width = 10,height = 6,dpi = 300)
+ggsave('plot/Valid_hos_main.tiff', width = 10,height = 6,dpi = 300)
 
 df_plot_sens_long %>% 
   filter(metric=='hos') %>%
   ggplot(aes(Country,y = est,colour = type)) +
   geom_pointrange(
     aes(ymin = lci, ymax= uci,linetype = factor(overlap,levels=c(T,F)),shape=factor(overlap,levels=c(T,F))),
-    position = position_dodge(.55),
+    position = position_dodge(.55),show.legend = T,size=.3
   ) +
   facet_grid2(. ~ AGEGR, scales = "free", space = "free_x", independent = "y")+
   scale_color_lancet(name = NULL)+
-  scale_linetype_discrete(name = NULL,labels = c("Overlapping", "Non-overlapping")) +
-  scale_shape_manual(name = NULL,values=c(19,21),labels = c("Overlapping", "Non-overlapping"))+
-  labs(x = NULL, y = "RSV-associated ALRI hospital admission rate\n(/1,000 person-years)") +
+  scale_linetype_discrete(
+    name = NULL,
+    labels = c("Overlapping", "Non-overlapping"),
+    drop = FALSE
+  ) +
+  # 2. 在这里也加上 drop = FALSE，并补齐 values 映射
+  scale_shape_manual(
+    name = NULL,
+    values = c("TRUE" = 19, "FALSE" = 21),
+    labels = c("Overlapping", "Non-overlapping"),
+    drop = FALSE
+  ) +
+  labs(x = NULL, y = "RSV-associated ALRI hospital admission rate\n(/1,000 person-years)",
+       title='Sensitivity validation analysis') +
+  coord_cartesian(ylim=c(0,50))+
   theme_bw() +
   theme(
     legend.position = "top",
@@ -778,7 +882,7 @@ df_plot_sens_long %>%
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
-ggsave('plot/Valid_sens_hos.tiff', width = 10,height = 6,dpi = 300)
+ggsave('plot/Valid_hos_sens.tiff', width = 10,height = 6,dpi = 300)
 
 ## mort----
 p_att<-df_plot_sens_long %>% 
@@ -786,13 +890,13 @@ p_att<-df_plot_sens_long %>%
   ggplot(aes(Country,y = est,colour = type)) +
   geom_pointrange(
     aes(ymin = lci, ymax= uci,linetype = factor(overlap,levels=c(T,F)),shape=factor(overlap,levels=c(T,F))),
-    position = position_dodge(.55),
+    position = position_dodge(.55),size=.3
   ) +
   facet_grid2(. ~ AGEGR, scales = "free", space = "free_x", independent = "y")+
   scale_color_lancet(name = NULL,labels=c('Model-estimated','Study-reported'))+
   scale_linetype_discrete(name = NULL,labels = c("Overlapping", "Non-overlapping")) +
   scale_shape_manual(name = NULL,values=c(19,21),labels = c("Overlapping", "Non-overlapping"))+
-  labs(x = "Study", y = "RSV-attributable all-cause mortality rate\n(/10,000 person-years)") +
+  labs(x = "Study", y = "RSV-attributable all-cause mortality rate\n(/100,000 person-years)") +
   theme_bw() +
   theme(
     legend.position = "none",
@@ -805,13 +909,13 @@ p_ass<-df_plot_sens_long %>%
   ggplot(aes(Country,y = est,colour = type)) +
   geom_pointrange(
     aes(ymin = lci, ymax= uci,linetype = factor(overlap,levels=c(T,F)),shape=factor(overlap,levels=c(T,F))),
-    position = position_dodge(.55),
+    position = position_dodge(.55),size=.3
   ) +
-  facet_grid2(. ~ AGEGR, scales = "free", space = "free_x", independent = "y")+
+  facet_grid2(. ~ AGEGR, scales = "free", space = "free_x", independent = "none")+
   scale_color_lancet(name = NULL,labels=c('Model-estimated','Study-reported'))+
   scale_linetype_discrete(name = NULL,labels = c("Overlapping", "Non-overlapping")) +
   scale_shape_manual(name = NULL,values=c(19,21),labels = c("Overlapping", "Non-overlapping"))+
-  labs(x = "Study", y = "RSV-associated all-cause mortality rate\n(/10,000 person-years)") +
+  labs(x = "Study", y = "RSV-associated all-cause mortality rate\n(/100,000 person-years)") +
   theme_bw() +
   theme(
     legend.position = "top",
@@ -825,12 +929,7 @@ p_ass + p_att +
 
 ggsave('plot/Valid_main_mort.tiff', width = 10,height = 6,dpi = 300)
 
-## Diagonal plot ----
-
-df_plot_sens %>% 
-  ggplot(aes(compare_est,model_est))+
-  geom_point()+
-  geom_smooth(formula = 'y~x+0',method='lm')
+# Diagonal plot ----
 
 df_plot_sens %>%
   summary()
@@ -870,13 +969,10 @@ df_plot_main %>%
 ggsave('plot/Diagonal_mort.tiff', width = 10, height = 5, dpi = 300,compression = "lzw")
 
 ### inc ----
-df_plot_main %>%
-  filter(str_detect(metric, "inc")) %>%
-  summary()
+lapply(split(df_plot_main, df_plot_main$metric), summary)
 
-df_plot_sens %>%
-  filter(str_detect(metric, "inc")) %>%
-  summary()
+
+lapply(split(df_plot_sens, df_plot_sens$metric), summary)
 
 df_plot_main %>%
   filter(str_detect(metric, "inc")) %>%
@@ -884,10 +980,10 @@ df_plot_main %>%
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50", linewidth = 1) +
   geom_linerange(aes(xmin = compare_lci, xmax = compare_uci, color = Country), alpha = 0.5, linewidth = 0.5) +
   geom_linerange(aes(ymin = model_lci, ymax = model_uci, color = Country), alpha = 0.5, linewidth = 0.5) +
-  geom_point(aes(color = Country, shape = valid_type), size = 3, alpha = 0.8) +
+  geom_point(aes(color = Country, shape = valid_type), size = 3, alpha = 0.8,show.legend = T) +
   scale_x_log10() + scale_y_log10() + theme_bw() +
   coord_cartesian(xlim = c(6, 450), ylim = c(6, 450),ratio = 1) +
-  scale_shape_discrete(name=NULL,label=c('Cross-study meta-estimates','Multicenter-study reported estimates'))+
+  scale_shape_discrete(name=NULL,label=c('meta'='Cross-study meta-estimates','single'='Multicenter-study reported estimates'))+
   scale_color_discrete(name=NULL)+
   labs(x = "Reference RSV-associated ALRI incidence rate from meta-analyses\nor multicenter studies (/1,000 person-years)",
        y = "Model-estimated RSV-associated ALRI incidence rate\n(/1,000 person-years)", color = "Metric", shape = "Country") +
@@ -902,10 +998,10 @@ df_plot_sens %>%
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50", linewidth = 1) +
   geom_linerange(aes(xmin = compare_lci, xmax = compare_uci, color = Country), alpha = 0.5, linewidth = 0.5) +
   geom_linerange(aes(ymin = model_lci, ymax = model_uci, color = Country), alpha = 0.5, linewidth = 0.5) +
-  geom_point(aes(color = Country, shape = valid_type), size = 3, alpha = 0.8) +
+  geom_point(aes(color = Country, shape = valid_type), size = 3, alpha = 0.8,show.legend = T) +
   scale_x_log10() + scale_y_log10() + theme_bw() +
-  coord_cartesian(xlim = c(20, 220), ylim = c(20, 220),ratio = 1) +
-  scale_shape_discrete(name=NULL,label=c('Cross-study meta-estimates','Multicenter-study reported estimates'))+
+  coord_cartesian(xlim = c(20, 400), ylim = c(20, 400),ratio = 1) +
+  scale_shape_discrete(name=NULL,label=c('meta'='Cross-study meta-estimates','single'='Multicenter-study reported estimates'))+
   scale_color_discrete(name=NULL)+
   labs(x = "Reference RSV-associated ALRI incidence rate from meta-analyses\nor multicenter studies (/1,000 person-years)",
        y = "Model-estimated RSV-associated ALRI incidence rate\n(/1,000 person-years)", color = "Metric", shape = "Country") +
@@ -917,7 +1013,7 @@ ggsave('plot/Diagonal_sens_inc.tiff', width = 10, height = 5, dpi = 300,compress
 ### hos ----
 
 df_plot_main %>%
-  filter(str_detect(metric, "hos")) %>%
+  filter(str_detect(metric, "mort.att")) %>%
   summary()
 
 df_plot_sens %>%
@@ -930,10 +1026,10 @@ df_plot_main %>%
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50", linewidth = 1) +
   geom_linerange(aes(xmin = compare_lci, xmax = compare_uci, color = Country), alpha = 0.5, linewidth = 0.5) +
   geom_linerange(aes(ymin = model_lci, ymax = model_uci, color = Country), alpha = 0.5, linewidth = 0.5) +
-  geom_point(aes(color = Country, shape = valid_type), size = 3, alpha = 0.8) +
+  geom_point(aes(color = Country, shape = valid_type), size = 3, alpha = 0.8,show.legend = T) +
   scale_x_log10() + scale_y_log10() + theme_bw() +
   coord_cartesian(xlim = c(0.05, 170), ylim = c(0.05, 170),ratio = 1) +
-  scale_shape_discrete(name=NULL,label=c('Cross-study meta-estimates','Multicenter-study reported estimates'))+
+  scale_shape_discrete(name=NULL,label=c('meta'='Cross-study meta-estimates','single'='Multicenter-study reported estimates'))+
   scale_color_discrete(name=NULL)+
   labs(x = "Reference RSV-associated ALRI hospital admission rate from meta-analyses\nor multicenter studies (/1,000 person-years)",
        y = "Model-estimated RSV-associated ALRI\nhospital admission rate (/1,000 person-years)", color = "Metric", shape = "Country") +
@@ -948,20 +1044,216 @@ df_plot_sens %>%
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "gray50", linewidth = 1) +
   geom_linerange(aes(xmin = compare_lci, xmax = compare_uci, color = Country), alpha = 0.5, linewidth = 0.5) +
   geom_linerange(aes(ymin = model_lci, ymax = model_uci, color = Country), alpha = 0.5, linewidth = 0.5) +
-  geom_point(aes(color = Country, shape = valid_type), size = 3, alpha = 0.8) +
+  geom_point(aes(color = Country, shape = valid_type), size = 3, alpha = 0.8,show.legend = T) +
   scale_x_log10() + scale_y_log10() + theme_bw() +
   coord_cartesian(xlim = c(0.08, 170), ylim = c(0.08, 170),ratio = 1) +
-  scale_shape_discrete(name=NULL,label=c('Cross-study meta-estimates','Multicenter-study reported estimates'))+
+  scale_shape_manual(name=NULL,values = c("meta" = 16, "single" = 17),
+                     label=c('meta'='Cross-study meta-estimates','single'='Multicenter-study reported estimates'),
+                     breaks = c("single", "meta"))+
   scale_color_discrete(name=NULL)+
   labs(x = "Reference RSV-associated ALRI hospital admission rate from meta-analyses\nor multicenter studies (/1,000 person-years)",
        y = "Model-estimated RSV-associated ALRI\nhospital admission rate (/1,000 person-years)", color = "Metric", shape = "Country") +
   facet_wrap(~AGEGR)+
-  guides(shape = guide_legend(position = "top"))
+  guides(shape = guide_legend(position = "top"),
+         color = guide_legend(override.aes = list(shape=17)))
 
 ggsave('plot/Diagonal_sens_hos.tiff', width = 10, height = 5, dpi = 300,compression = "lzw")
 
+# Figure 4 diagnoal plot ----
+## main ----
 
-# Table ----
+df_plot_main %>% count(Country)
+country_colors <- c(
+  "Argentina"    = "#00468B",  # 经典深蓝 (Lancet Blue)
+  "India"        = "#ED0000",  # 哑光红 (Lancet Red)
+  "Kenya"        = "#42B540",  # 柔和绿 (Lancet Green)
+  "Peru"         = "#0099B4",  # 青蓝/湖蓝 (Lancet Cyan)
+  "Philippines"  = "#925E9F",  # 典雅紫 (Lancet Purple)
+  "South Africa" = "#FDAF91",  # 暖珊瑚杏 (Lancet Peach)
+  "Thailand"     = "#AD002A"   # 深红/酒红 (Lancet Dark Red)
+)
+df_plot_main %>% count(valid_type2)
+
+type_shapes<-c("meta" = 15, "single" = 17, "Mortality Study" = 16)
+type_labels <- c("Meta-estimates", 
+                 "Multicenter estimates", 
+                 "Mortality estimates")
+
+df_plot_sens %>% filter(metric %in% c('inc','hos')) %>% count(Country)
+country_colors_sens<-country_colors[c(2,6)]
+type_shapes_sens<-type_shapes[1:2]
+type_labels_sens<-type_labels[1:2]
+
+p1<-df_plot_main %>%
+  filter(str_detect(metric, "inc")) %>%
+  ggplot(aes(x = compare_est, y = model_est)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "22", color = "gray50", linewidth = 1) +
+  geom_linerange(aes(xmin = compare_lci, xmax = compare_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = T) +
+  geom_linerange(aes(ymin = model_lci, ymax = model_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = T) +
+  geom_point(aes(color = Country, shape = valid_type2), size = 2, alpha = 0.8,show.legend = T) +
+  scale_x_log10() + scale_y_log10() + theme_bw() +
+  coord_cartesian(xlim = c(6, 450), ylim = c(6, 450),ratio = 1) +
+  scale_shape_manual(name = NULL, limits = c("meta", "single", "Mortality Study"), 
+                     values = type_shapes, 
+                     labels = type_labels, 
+                     drop = FALSE)+
+  scale_color_manual(values = country_colors,name=NULL,drop=F,limits = names(country_colors))+
+  labs(x = "Validation estimates",
+       y = "Modeled estimates", color = "Metric", shape = "Country",
+       title = 'RSV-associated ALRI incidence rate',tag = 'A') +
+  facet_wrap(~AGEGR,nrow = 1)
+
+p2<-df_plot_main %>%
+  filter(str_detect(metric, "hos")) %>%
+  ggplot(aes(x = compare_est, y = model_est)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "22", color = "gray50", linewidth = 1) +
+  geom_linerange(aes(xmin = compare_lci, xmax = compare_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = T) +
+  geom_linerange(aes(ymin = model_lci, ymax = model_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = T) +
+  geom_point(aes(color = Country, shape = valid_type2), size = 2, alpha = 0.8,show.legend = T) +
+  scale_x_log10(breaks=c(0.1,1,10,100),labels=c(0.1,1,10,100)) + scale_y_log10(breaks=c(0.1,1,10,100),labels=c(0.1,1,10,100)) + theme_bw() +
+  coord_cartesian(xlim = c(0.05, 170), ylim = c(0.05, 170),ratio = 1) +
+  scale_shape_manual(name = NULL, limits = c("meta", "single", "Mortality Study"), 
+                     values = type_shapes, 
+                     labels = type_labels, 
+                     drop = FALSE)+
+  scale_color_manual(values = country_colors,name=NULL,drop=F,limits = names(country_colors))+
+  labs(x = "Validation estimates",
+       y = "Modeled estimates", color = "Metric", shape = "Country",
+       title = 'RSV-associated ALRI hospital admission rate',tag = 'B') +
+  facet_wrap(~AGEGR,nrow=1)
+
+p3<-df_plot_main %>%
+  filter(str_detect(metric, "mort.att")) %>%
+  ggplot(aes(x = compare_est, y = model_est)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "22", color = "gray50", linewidth = 1) +
+  geom_linerange(aes(xmin = compare_lci, xmax = compare_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = T) +
+  geom_linerange(aes(ymin = model_lci, ymax = model_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = T) +
+  geom_point(aes(color = Country,shape = valid_type2), size = 2, alpha = 0.8,show.legend = T) +
+  scale_x_log10(breaks=c(0.1,1,10,100),labels=c(0.1,1,10,100)) + scale_y_log10(breaks=c(0.1,1,10,100),labels=c(0.1,1,10,100)) + theme_bw() +
+  coord_cartesian(xlim = c(0.08, 500), ylim = c(0.08, 500),ratio = 1) +
+  scale_color_manual(values = country_colors,name=NULL,drop=F,limits = names(country_colors))+
+  scale_shape_manual(name = NULL, limits = c("meta", "single", "Mortality Study"), 
+                     values = type_shapes, 
+                     labels = type_labels, 
+                     drop = FALSE)+
+  labs(x = "Validation estimates", y = "Modeled estimates",
+       title = 'RSV-attributable\nall-cause mortality rate',tag = 'C') +
+  facet_wrap(~AGEGR)
+
+p4<-df_plot_main %>%
+  filter(str_detect(metric, "mort.ass")) %>%
+  ggplot(aes(x = compare_est, y = model_est)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "22", color = "gray50", linewidth = 1) +
+  geom_linerange(aes(xmin = compare_lci, xmax = compare_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = T) +
+  geom_linerange(aes(ymin = model_lci, ymax = model_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = T) +
+  geom_point(aes(color = Country,shape = valid_type2), size = 2, alpha = 0.8,show.legend = T) +
+  scale_x_log10(breaks=c(0.1,1,10,100),labels=c(0.1,1,10,100)) + scale_y_log10(breaks=c(0.1,1,10,100),labels=c(0.1,1,10,100)) + theme_bw() +
+  coord_cartesian(xlim = c(0.08, 500), ylim = c(0.08, 500),ratio = 1) +
+  scale_color_manual(values = country_colors,name=NULL,drop=F,limits = names(country_colors))+
+  scale_shape_manual(name = NULL, limits = c("meta", "single", "Mortality Study"), 
+                     values = type_shapes, 
+                     labels = type_labels,
+                     drop = FALSE)+
+  labs(x = "Validation estimates", y = "Modeled estimates",
+       title = 'RSV-associated all-cause mortality rate',tag = 'D') +
+  facet_wrap(~AGEGR,nrow=1)
+
+# 在 p3 和 p4 的代码末尾各加上：force_panelsizes()
+u<-3.235
+p1_fixed <- p1 + force_panelsizes(rows = unit(3.5, "cm"), cols = unit(3.5, "cm"))
+p2_fixed <- p2 + force_panelsizes(rows = unit(3.5, "cm"), cols = unit(3.5, "cm"))
+p3_fixed <- p3 + force_panelsizes(rows = unit(u, "cm"), cols = unit(u, "cm"))
+p4_fixed <- p4 + force_panelsizes(rows = unit(u, "cm"), cols = unit(u, "cm"))
+
+# 此时宽度不需要手动按 1:4 猜比例了，直接并排即可！
+p3_p4_row <- p3_fixed + p4_fixed
+
+(p1_fixed / p2_fixed / p3_p4_row)+
+  plot_layout(
+    guides = "collect"
+  ) &
+  theme_survinger(base_family = "Arial") &
+  theme(
+    text=element_text(family = 'Arial'),
+    legend.position = "right",
+    plot.tag = element_text(size=12,face='bold'),
+    strip.text = element_text(size=8,face='bold',vjust = .5,margin = margin(b = 3)),
+    strip.background = element_blank(),
+    plot.title = element_text(size=9),
+    axis.title = element_text(size=9),
+    axis.text = element_text(size=8),
+    plot.margin = margin()
+  )
+
+ggsave("plot/Figure_4.tiff", width = 10, height = 7, dpi = 300,compression = "lzw")
+
+## sens ----
+p1_sens<-df_plot_sens %>%
+  filter(str_detect(metric, "inc")) %>%
+  ggplot(aes(x = compare_est, y = model_est)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "22", color = "gray50", linewidth = 1) +
+  geom_linerange(aes(xmin = compare_lci, xmax = compare_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = T) +
+  geom_linerange(aes(ymin = model_lci, ymax = model_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = T) +
+  geom_point(aes(color = Country, shape = valid_type2), size = 2, alpha = 0.8,show.legend = T) +
+  scale_x_log10() + scale_y_log10() + theme_bw() +
+  coord_cartesian(xlim = c(6, 450), ylim = c(6, 450),ratio = 1) +
+  scale_shape_manual(name = NULL, limits = c("meta", "single"), 
+                     values = type_shapes_sens, 
+                     labels = type_labels_sens, 
+                     drop = FALSE)+
+  scale_color_manual(values = country_colors_sens,name=NULL,drop=F,limits = names(country_colors_sens))+
+  labs(x = "Validation estimates",
+       y = "Modeled estimates", color = "Metric", shape = "Country",
+       title = 'RSV-associated ALRI incidence rate',tag = 'A') +
+  facet_wrap(~AGEGR,nrow = 1)+
+  theme(legend.position = 'right')
+
+p2_sens<-df_plot_main %>%
+  filter(str_detect(metric, "hos")) %>%
+  ggplot(aes(x = compare_est, y = model_est)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "22", color = "gray50", linewidth = 1) +
+  geom_linerange(aes(xmin = compare_lci, xmax = compare_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = F) +
+  geom_linerange(aes(ymin = model_lci, ymax = model_uci, color = Country), alpha = 0.5, linewidth = 0.5,show.legend = F) +
+  geom_point(aes(color = Country, shape = valid_type2), size = 2, alpha = 0.8,show.legend = F) +
+  scale_x_log10(breaks=c(0.1,1,10,100),labels=c(0.1,1,10,100)) + scale_y_log10(breaks=c(0.1,1,10,100),labels=c(0.1,1,10,100)) + theme_bw() +
+  coord_cartesian(xlim = c(0.05, 170), ylim = c(0.05, 170),ratio = 1) +
+  scale_shape_manual(name = NULL, limits = c("meta", "single"), 
+                     values = type_shapes_sens, 
+                     labels = type_labels_sens, 
+                     drop = FALSE)+
+  scale_color_manual(values = country_colors_sens,name=NULL,drop=F,limits = names(country_colors_sens))+
+  labs(x = "Validation estimates",
+       y = "Modeled estimates", color = "Metric", shape = "Country",
+       title = 'RSV-associated ALRI hospital admission rate',tag = 'B') +
+  facet_wrap(~AGEGR,nrow=1)+
+  theme(legend.position = 'null')
+
+design_layout <- "
+AAA##
+BBBBB
+"
+
+# 2. 直接拼接，并应用你的主题
+final_plot_sens <- (p1_sens + p2_sens) +
+  plot_layout(
+    design = design_layout
+  ) &
+  theme(
+    text = element_text(family = 'Arial'),
+    plot.tag = element_text(size = 12, face = 'bold'),
+    strip.text = element_text(size = 8, face = 'bold', vjust = .5, margin = margin(b = 3)),
+    strip.background = element_blank(),
+    plot.title = element_text(size = 9,face='bold'),
+    axis.title = element_text(size = 9),
+    axis.text = element_text(size = 8),
+    plot.margin = margin(5, 5, 5, 5, "pt")
+  )
+
+final_plot_sens
+
+ggsave("plot/Figure_4_sens.tiff", width = 9, height = 5, dpi = 300,compression = "lzw")
+
+# Table overlap ----
 
 ## main ----
 metric_map <- c(
@@ -1077,23 +1369,23 @@ flextable(tab_sens) %>%
   autofit() %>%
   save_as_docx(path = "docs/Valid_sens_overlap.docx")
 
-# Study ----
+# Study Included----
 
 ## mortality ----
 df_final_main %>%
-  filter(metric %in% c('mort.ass','mort.att')) %>%
+  filter(metric %in% c('mort.att','mort.ass')) %>%
   arrange(metric) %>% 
   split(.,.$metric) %>%
   imap_dfr(~{
     df<-.x
     df %>%
-      transmute(SID,References=sprintf('%s et al. %s',Author0,PubYear),Country,Location,`Study Period`=StudyPeriod,`Income level`=Income2019,Age=AGEGR,
-                valid=sprintf('%.1f\n(%.1f-%.1f)',valid_est,valid_lci,valid_uci),
-                model=sprintf('%.1f\n(%.1f-%.1f)',model_est,model_lci,model_uci),
-                `Uncertainty interval overlap`=ifelse(overlap,'Yes','No')) %>%
-      bind_rows(tibble(SID=metric_map[.y]),.)
+      transmute(Age=AGEGR,Country,`Income level`=Income2019,References=sprintf('%s et al. %s',Author0,PubYear),Location,`Study Period`=StudyPeriod,
+                `Estimates from individual studies`=sprintf('%.1f\n[%.1f-%.1f]',valid_est,valid_lci,valid_uci)
+                ) %>%
+      bind_rows(tibble(Age=metric_map[.y]),.)
   }) %>%
-  export('docs/Study_valid_mortality.xlsx')
+  export_rsv_table_doc('docs/Study_final_mortality.docx')
+
 
 ## inc hos main ----
 c('inc','hos') %>%
@@ -1174,7 +1466,7 @@ c('inc','hos') %>%
   }) %>% 
   export('docs/Study_meta_main.xlsx')
 
-c('inc','hos') %>%
+c('inc') %>%
   imap_dfr(~{
     df_meta_plot_sens %>%
       left_join(df_lmic_imputed %>% select(ISOCountry,Income2019)) %>%
@@ -1193,6 +1485,97 @@ c('inc','hos') %>%
       bind_rows(tibble(Age=metric_map[.y]),.)
   }) %>% 
   export('docs/Study_meta_sens.xlsx')
+
+# Validation Study final ----
+df_meta<-left_join(
+  df_meta_plot_main %>%
+    left_join(df_lmic_imputed %>% select(ISOCountry,Income2019)) %>%
+    split(.,.$gid) %>%
+    map_dfr(~{
+      df<-.x
+      df %>%
+        filter(!is.na(SID)) %>%
+        transmute(gid,SID,Type='Meta-pooled',Age2=AGEGR,Age=AGEGR,Country,`Income level`=Income2019,References=study_label,Location,`Study Period`=StudyPeriod,
+                  Rate_ind=effect_label,Rate_main=df %>% filter(is.na(SID)) %>% pull(effect_label)) %>%
+        mutate(across(c(Age,Type,Country,`Income level`,Rate_main),~{
+          ifelse(row_number()==1,.x,NA_character_)
+        }))
+    }),
+  df_meta_plot_sens %>%
+    left_join(df_lmic_imputed %>% select(ISOCountry,Income2019)) %>%
+    split(.,.$gid) %>%
+    map_dfr(~{
+      df<-.x
+      df %>%
+        filter(!is.na(SID)) %>%
+        transmute(gid,SID,Type='Meta-pooled',Age2=AGEGR,Age=AGEGR,Country,`Income level`=Income2019,References=study_label,Location,`Study Period`=StudyPeriod,
+                  Rate_ind=effect_label,Rate_sens=df %>% filter(is.na(SID)) %>% pull(effect_label)) %>%
+        mutate(across(c(Age,Type,Country,`Income level`,Rate_sens),~{
+          ifelse(row_number()==1,.x,NA_character_)
+        }))
+    }) %>% select(gid,SID,Rate_sens),by = c('gid','SID')
+) %>% 
+  mutate(Rate_sens=ifelse(!is.na(Rate_main) & is.na(Rate_sens),'—',Rate_sens),
+         across(starts_with('Rate_'),~str_replace(.x,' \\[','\n[')))
+
+tem_main<-c('inc','hos') %>%
+  imap_dfr(~{
+    df_final_main %>%
+      filter(metric %in% .x) %>%
+      mutate(Age2=ordered(AGEGR,levels=c('0-<6m','6-<12m','0-<12m','12-<60m','0-<60m'))) %>%
+      arrange(Age2,desc(valid_type),Country) %>% 
+      mutate(gid=factor(gid,levels=unique(.$gid))) %>%
+      split(.,.$gid) %>%
+      imap_dfr(~{
+        df<-.x
+        if(str_detect(.y,'_single')){
+          df %>%
+            transmute(gid,Age2,Type='Multicenter-\nstudy reported',SID,References=sprintf('%s et al. %s%s',Author0,ifelse(!is.na(PubYear),PubYear,'RSV GEN'),ifelse(from=='internal','*','')),Country,Location,`Study Period`=StudyPeriod,`Income level`=Income2019,Age=AGEGR,
+                      Rate_ind=sprintf('%.1f\n[%.1f-%.1f]',compare_est,compare_lci,compare_uci),Rate_main=Rate_ind)
+        } else {
+          df %>%
+            transmute(gid) %>%
+            left_join(df_meta %>% select(-Rate_sens),by=c('gid'))
+        }
+      }) %>%
+      bind_rows(tibble(Age=metric_map[.y]),.)
+  }) %>% 
+  relocate(gid,Age2,SID,Age,Country,`Income level`,References,Location,`Study Period`,Type,Rate_ind,Rate_main) %>% 
+  mutate(gid_sid=paste(gid,SID,sep='_'),.before=1)
+
+tem_sens<-c('inc','hos') %>%
+  imap_dfr(~{
+    df_final_sens %>%
+      mutate(Age2=factor(AGEGR,levels=c('0-<6m','6-<12m','0-<12m','12-<60m','0-<60m'))) %>%
+      filter(metric %in% .x) %>%
+      arrange(Age2,desc(valid_type),Country) %>% 
+      mutate(gid=factor(gid,levels=unique(.$gid))) %>%
+      split(.,.$gid) %>%
+      imap_dfr(~{
+        df<-.x
+        if(str_detect(.y,'_single')){
+          df %>%
+            transmute(gid,Age2,Type='Multicenter-\nstudy reported',SID,References=sprintf('%s et al. %s',Author0,ifelse(!is.na(PubYear),PubYear,'RSV GEN')),Country,Location,`Study Period`=StudyPeriod,`Income level`=Income2019,Age=AGEGR,
+                      Rate_ind=sprintf('%.1f\n[%.1f-%.1f]',compare_est,compare_lci,compare_uci),Rate_sens=Rate_ind)
+        } else {
+          df %>%
+            transmute(gid) %>%
+            left_join(df_meta %>% select(-Rate_main),by=c('gid'))
+        }
+      }) %>%
+      arrange(Age2)
+  }) %>% 
+  relocate(gid,Type,Age2,SID,Age,Country,`Income level`,References,Location,`Study Period`,Rate_ind,Rate_sens) %>% 
+  mutate(gid_sid=paste(gid,SID,sep='_'),not_na_row_sens=T,.before=1)
+
+df<-left_join(tem_main,tem_sens %>% select(gid_sid,Rate_sens,not_na_row_sens),by='gid_sid')  %>%
+  mutate(Rate_sens=if_else(is.na(not_na_row_sens),'—',Rate_sens)) %T>% 
+  export('docs/Study_final_hos_inc_raw.xlsx') %>%
+  select(-c(1:4),-not_na_row_sens) %>%
+  mutate(across(everything(), ~ replace_na(.x, "")),
+         `Study Period`=str_replace(`Study Period`,'-','-\n')) %>%
+  export_rsv_table_doc('docs/Study_final_hos_inc_lite.docx')
+
 
 ## References ----
 

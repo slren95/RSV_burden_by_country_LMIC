@@ -97,10 +97,10 @@ df_final<-bind_rows(
 df_final %>% count(SID)
 
 # 1️⃣Final validation dataset ----
-rio::export(df_final,'validation/df_final.xlsx')
+rio::export(df_final,'validation/df_final.xlsx') 
 
 ## df_final_2 ----
-df_valid<-import('validation/df_final_2.xlsx')
+df_valid<-import('validation/df_final_2.xlsx') # add multi-center
 
 df_valid.2<-df_valid %>%
   filter(Included==1) %>%
@@ -161,7 +161,14 @@ df_valid.4<-df_valid.3 %>%
   rename(valid_est=ComparableMetricValue,valid_lci=`95%LCI`,valid_uci=`95%UCI`,
          model_est=model_500,model_lci=model_025,model_uci=model_975) %>%
   mutate(overlap = pmax(valid_lci, model_lci, na.rm = TRUE) <= pmin(valid_uci, model_uci, na.rm = TRUE)) %>%
-  filter(AGEGR!='0-<24m')
+  filter(AGEGR!='0-<24m') 
+
+df_valid.4 %>% count(SID) %>% arrange(SID) %>% add_count() 
+df_valid.4 %>% distinct(SID,.keep_all = T) %>% count(Database) # 4 8 4 2 
+df_valid %>% distinct(SID,.keep_all = T) %>% count(Database)  # 6 10 6 3
+
+df_valid %>% filter(!SID %in% df_valid.4$SID) %>% view()
+
 
 ## 2️⃣df_valid_4----
 rio::export(df_valid.4,'rda/df_valid.4.rds')
@@ -218,7 +225,7 @@ df_plot_long %>%
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
-ggsave('plot/Valid_external_inc.tiff', width = 10,height = 6,dpi = 300)
+# ggsave('plot/Valid_external_inc.tiff', width = 10,height = 6,dpi = 300)
 
 
 ## hos ----
@@ -241,7 +248,7 @@ df_plot_long %>%
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 
-ggsave('plot/Valid_external_hos.tiff', width = 10,height = 6,dpi = 300)
+# ggsave('plot/Valid_external_hos.tiff', width = 10,height = 6,dpi = 300)
 
 ## mort ----
 
@@ -288,7 +295,7 @@ p_att<-df_plot_long %>%
 p_ass + p_att +
   plot_layout(widths = c(6, 2),axes = "collect_x")
 
-ggsave('plot/Valid_external_mort.tiff', width = 10,height = 6,dpi = 300)
+# ggsave('plot/Valid_external_mort.tiff', width = 10,height = 6,dpi = 300)
 
 # Table ----
 res <- df_plot %>% tabyl(AGEGR, overlap, metric) %>%
@@ -440,3 +447,4 @@ for (m in names(metric_map)) {
 saveWorkbook(wb, "docs/Study_external_combined.xlsx", overwrite = TRUE)
 
 df_plot %>% count(metric)
+

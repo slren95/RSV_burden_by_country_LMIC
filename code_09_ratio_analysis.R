@@ -3,6 +3,7 @@ library(tidyverse)
 library(rio)
 library(ggsci)
 library(scales)
+library(patchwork)
 
 RF.res.impute_1000<-import('rda/RF.res.impute2.rds',trust=T) 
 df_hos_sample_final_1000<-import("rda/df_hos_sample_final_1000.rds",trust=T)
@@ -80,9 +81,27 @@ df_pro_sum<-df_pro_all %>%
   pivot_wider(id_cols = c(ISOCountry,AGEGR,Income2019,CountryName,region),names_from = q,values_from = contains('_2_'),names_sep = '.') %>%
   mutate(Income2019 = factor(Income2019, levels = c("L", "LM", "UM")),
          AGEGR=factor(AGEGR,levels=c('0-<6m','6-<12m','0-<12m','12-<60m','0-<60m'))) %>% 
-  mutate(ISOCountry = fct_reorder(ISOCountry, as.numeric(Income2019)))
+  mutate(ISOCountry = fct_reorder(ISOCountry, as.numeric(Income2019))) %>%
+  mutate(str_mort2inc=sprintf('%.2f (%.2f-%.2f)%%',round(mor_2_inc.500*100,2),round(mor_2_inc.025*100,2),round(mor_2_inc.975*100,2)))
 
 head(df_pro_sum)
+
+df_pro_sum_byincome<-df_pro_all %>%
+  select(-hos_2_inc,-mor_2_inc,-R.inc,-R.hos) %>%
+  summarise(across(starts_with('N.'),~sum(.x,na.rm=T)),.by = c(index,AGEGR,Income2019)) %>%
+  mutate(hos_2_inc=N.hos/N.inc,mor_2_inc=N.mor_att/N.inc) %>%
+  reframe(
+    q = c("025", "500", "975"),
+    across(
+      contains('_2_'),
+      ~ quantile(.x, probs = c(0.025, 0.5, 0.975), na.rm = TRUE)
+    ),
+    .by = c(AGEGR,Income2019)
+  ) %>%
+  pivot_wider(id_cols = c(AGEGR,Income2019),names_from = q,values_from = contains('_2_'),names_sep = '.') %>%
+  mutate(Income2019 = factor(Income2019, levels = c("L", "LM", "UM")),
+         AGEGR=factor(AGEGR,levels=c('0-<6m','6-<12m','0-<12m','12-<60m','0-<60m'))) %>% 
+  mutate(str_mort2inc=sprintf('%.2f (%.2f-%.2f)%%',round(mor_2_inc.500*100,2),round(mor_2_inc.025*100,2),round(mor_2_inc.975*100,2)))
 
 ## plot ----
 
@@ -109,16 +128,17 @@ ggplot(df_pro_sum, aes(x = ISOCountry,color=Income2019)) +
   geom_linerange(aes(ymin = mor_2_inc.025, ymax = mor_2_inc.975), size = 0.7) +
   geom_point(aes(y = mor_2_inc.500), size = 1.5)+
   facet_wrap(AGEGR~., scales = "free_y", ncol = 1) +
-  scale_color_lancet() + 
+  scale_color_lancet(labels=c('L'='Low income','LM'='Lower-middle income','UM'='Upper-middle income')) + 
   scale_y_continuous(labels=label_percent())+
   theme_bw() +
   labs(
     x = "Country",
-    y = "attributable mortality to incidence",
+    y = "Ratio of RSV-attributable mortality rate to RSV-associated ALRI incidence rate",
     color = "Income level"
   ) +
   theme(
     axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1,family = "Consolas",face = 'bold',size=7),
+    axis.title = element_text(size=10),
     legend.position = "top",
     strip.background = element_rect(fill = "gray95") # 分面标签背景
   )
@@ -203,11 +223,11 @@ split(df_plot_map,df_plot_map$AGEGR) %>%
   })
 
 
-split(df_plot_map,df_plot_map$AGEGR) %>%
-  iwalk(~{
+plot_res<-split(df_plot_map,df_plot_map$AGEGR) %>%
+  imap(~{
     legend_name<-paste0('Attributable mortality to incidence ratio\n',.y)
     print(legend_name)
-    ggplot() +
+    p<-ggplot() +
       geom_polygon(
         data = world_map,
         aes(x = long, y = lat, group = group),
@@ -246,8 +266,17 @@ split(df_plot_map,df_plot_map$AGEGR) %>%
       )
     safe_age <- gsub("<", "", .y)
     filename <- sprintf('plot/map_mor_2_inc_%s.tiff',safe_age)
-    ggsave(filename,width = 10, height = 6, units = "in", dpi = 600,compression = "lzw", bg = "white")
+    ggsave(plot=p,filename,width = 10, height = 6, units = "in", dpi = 600,compression = "lzw", bg = "white")
+    p
   })
+
+# Figure ratio ----
+
+plot_res[[3]]+plot_res[[5]]+plot_layout(nrow=2)+
+  plot_annotation(tag_levels = "A") &
+  theme(plot.tag = element_text(size = 16))
+
+ggsave("plot/Figure_ratio.tiff", width = 6, height = 8, dpi = 300,compression = "lzw")
 
 # Top 5 ----
 
@@ -255,13 +284,36 @@ df_pro_sum %>%
   filter(AGEGR=='0-<12m') %>%
   slice_max(mor_2_inc.500,n=5) %>%
   select(ISOCountry,CountryName,contains('mor')) %>%
-  set_names(~str_remove_all(.x,'(m0012_)')) %>%
   mutate(across(starts_with('mor_2_inc'),~sprintf('%.1f',round(.x*100,1)))) %>%
   mutate(str_ratio=sprintf('%s. %s %s (%s–%s) %%',row_number(),CountryName,mor_2_inc.500,mor_2_inc.025,mor_2_inc.975)
          ) %>%
   mutate(str_ratio2=paste0(str_ratio,collapse = '\n')) %>%
   pull(str_ratio2) %>%
   head(1) %>%
-  cat("\n\n Mort_2_inc \n", ., file = "docs/top_5.txt", append = TRUE)
+  cat("\n\n Mort_2_inc 0-<12m \n", ., file = "docs/top_5.txt", append = TRUE)
 
+df_pro_sum %>%
+  filter(AGEGR=='0-<60m') %>%
+  slice_max(mor_2_inc.500,n=5) %>%
+  select(ISOCountry,CountryName,contains('mor')) %>%
+  mutate(across(starts_with('mor_2_inc'),~sprintf('%.1f',round(.x*100,1)))) %>%
+  mutate(str_ratio=sprintf('%s. %s %s (%s–%s) %%',row_number(),CountryName,mor_2_inc.500,mor_2_inc.025,mor_2_inc.975)
+  ) %>%
+  mutate(str_ratio2=paste0(str_ratio,collapse = '\n')) %>%
+  pull(str_ratio2) %>%
+  head(1) %>%
+  cat("\n\n Mort_2_inc 0-<60m \n", ., file = "docs/top_5.txt", append = TRUE)
 
+# Manuiscript ----
+
+df_pro_sum %>% filter(AGEGR %in% c('0-<12m','0-<60m')) %>%
+  select(AGEGR,Income2019,CountryName,str_mort2inc) %>%
+  arrange(AGEGR,Income2019,CountryName) %>%
+  export('docs/ratio.xlsx')
+
+df_pro_sum_byincome %>% filter(AGEGR %in% c('0-<12m','0-<60m')) %>%
+  select(AGEGR,Income2019,str_mort2inc) %>%
+  arrange(AGEGR) %>%
+  export('docs/ratio.xlsx')
+
+save.image()

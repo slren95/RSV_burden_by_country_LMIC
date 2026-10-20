@@ -269,6 +269,42 @@ df_country_lite %>%
 # Previous Mortality ----
 
 df_sum_all_DeCoDe<-import('rda/df_sum_all_DeCoDe.rds',trust=T)
+df_sum_ALRI_DeCoDe<-import('rda/df_sum_ALRI_DeCoDe.rds',trust=T)
+df_sum_ALRI_NP<-import('rda/df_sum_ALRI_NP.rds',trust=T)
+
+c('all_DeCoDe','ALRI_DeCoDe','ALRI_NP') %>%
+  walk(~{
+    df_mort_sum<-get(paste0('df_sum_',.x)) %>%
+      transmute(ISOCountry, CountryName, Income2019,pop_0012,pop_0060,
+                R_lci_0012 = m0012_R_025*100,
+                R_est_0012 = m0012_R_500*100,
+                R_uci_0012 = m0012_R_975*100,
+                N_lci_0012 = m0012_N_025,
+                N_est_0012 = m0012_N_500,
+                N_uci_0012 = m0012_N_975,
+                R_lci_0060 = m0060_R_025*100,
+                R_est_0060 = m0060_R_500*100,
+                R_uci_0060 = m0060_R_975*100,
+                N_lci_0060 = m0060_N_025,
+                N_est_0060 = m0060_N_500,
+                N_uci_0060 = m0060_N_975
+      ) %>%
+      pivot_longer(
+        cols = -c(ISOCountry, CountryName, Income2019),
+        names_to = c(".value", "age_group"),
+        names_pattern = "^(.*)_(0012|0060)$"
+      ) %>%
+      mutate(
+        age_group = case_when(
+          age_group == "0012" ~ "0-<12m",
+          age_group == "0060" ~ "0-<60m"
+        )
+      )
+    assign(paste0('df_compare_',.x),
+           inner_join(df_mort_sum,df_country_lite) %>%
+             mutate(ratio=R_est/R.GBD_est),envir = .GlobalEnv
+            )
+  })
 
 df_mort_sum<-df_sum_all_DeCoDe %>%
   transmute(ISOCountry, CountryName, Income2019,pop_0012,pop_0060,
@@ -297,7 +333,9 @@ df_mort_sum<-df_sum_all_DeCoDe %>%
     )
   )
 
-df_compare<-inner_join(df_mort_sum,df_country_lite)
+
+df_compare<-inner_join(df_mort_sum,df_country_lite) %>%
+  mutate(ratio=R_est/R.GBD_est)
 
 # Compare ----
 
@@ -315,29 +353,38 @@ df_compare %>%
   facet_wrap(age_group~.)
 
 ## rate ----
-df_compare %>%
-  dplyr::select(ISOCountry, Income2019,age_group,starts_with("R.GBD_"), starts_with("R_")) %>%
-  pivot_longer(
-    cols = -c(ISOCountry, Income2019,age_group),
-    names_to = c("metric", "stat"),
-    names_sep = "_"
-  ) %>%
-  pivot_wider(names_from = stat, values_from = value) %>%
-  ggplot(aes(x = ISOCountry, y = est, color = metric)) +
-  geom_point(position = position_dodge(width = 0.5), size = 2) +
-  geom_linerange(aes(ymin = lci, ymax = uci),
-                 position = position_dodge(width = 0.5),
-                 linewidth = 1) +
-  facet_grid2(age_group~Income2019, scales = "free_x",space="free_x",independent = "none") +
-  scale_color_lancet(name=NULL,labels=c('Model-estimated','GBD-estimated'))+
-  theme_bw(base_size = 10) +
-  labs(y='RSV-attributable mortality rate(per 100,000 person-years)',x='Country')+
-  theme(
-    axis.text.x = element_text(angle = 90, hjust = 1),
-    legend.position = "top"
-  )
 
-ggsave('plot/Compare_mortality_with_GBD_rate.tiff',width = 14, height = 7.5, dpi = 300,compression = "lzw")
+c('all_DeCoDe','ALRI_DeCoDe') %>% walk(~{
+  df_compare<-get(paste0('df_compare_',.x)) 
+  
+  legend_label=recode(.x,'all_DeCoDe'='Model-estimated RSV-attributable all-cause mortality rate',
+                      'ALRI_DeCoDe'='Model-estimated RSV-attributable ALRI mortality rate')
+  
+  df_compare %>%
+    dplyr::select(ISOCountry, Income2019,age_group,starts_with("R.GBD_"), starts_with("R_")) %>%
+    pivot_longer(
+      cols = -c(ISOCountry, Income2019,age_group),
+      names_to = c("metric", "stat"),
+      names_sep = "_"
+    ) %>%
+    pivot_wider(names_from = stat, values_from = value) %>%
+    ggplot(aes(x = ISOCountry, y = est, color = metric)) +
+    geom_point(position = position_dodge(width = 0.5), size = 2) +
+    geom_linerange(aes(ymin = lci, ymax = uci),
+                   position = position_dodge(width = 0.5),
+                   linewidth = 1) +
+    facet_grid2(age_group~Income2019, scales = "free_x",space="free_x",independent = "none") +
+    scale_color_lancet(name=NULL,labels=c(legend_label,'GBD-estimated LRI mortality rate'))+
+    theme_bw(base_size = 10) +
+    labs(y='RSV-attributable mortality rate(per 100,000 person-years)',x='Country')+
+    theme(
+      axis.text.x = element_text(angle = 90, hjust = 1),
+      legend.position = "top"
+    )
+  
+  ggsave(sprintf('plot/Compare_mortality_with_GBD_rate_%s.tiff',.x),width = 14, height = 7.5, dpi = 300,compression = "lzw")
+})
+
 
 ## number ----
 df_compare %>%
@@ -443,7 +490,7 @@ df_compare %>%
               ellipses = TRUE)
 
 grouped_ggscatterstats(
-  data = df_compare %>% mutate(across(c(R_est,R.GBD_est),log)),
+  data = df_compare_all_DeCoDe %>% mutate(across(c(R_est,R.GBD_est),log)),
   grouping.var = age_group,
   x = R_est,
   y = R.GBD_est,
@@ -457,7 +504,7 @@ grouped_ggscatterstats(
   ylab = "GBD-estimated RSV-attributable mortality rate\n(per 100,000 person-years,log-transformed)" # y轴标签
 ) & theme(ggside.panel.scale = .3)
 
-ggsave('plot/Compare_GBD.tiff', width = 12, height = 6, dpi = 300,compression = "lzw")
+ggsave('plot/Compare_GBD_all_DeCoDe.tiff', width = 12, height = 6, dpi = 300,compression = "lzw")
 
 
 ggplot(df_compare,aes(N_est,N.GBD_est))+
@@ -472,7 +519,7 @@ ggplot(df_compare,aes(N_est,N.GBD_est))+
        y = "GBD-estimated RSV-attributable all cause deaths (log-transformed)",
        color='Income level')
 
-ggplot(df_compare,aes(R_est,R.GBD_est))+
+ggplot(df_compare_all_DeCoDe,aes(R_est,R.GBD_est))+
   geom_point(aes(color=Income2019))+
   geom_smooth(method = 'lm',formula=as.formula(y~x+0))+
   scale_x_log10()+
@@ -483,4 +530,48 @@ ggplot(df_compare,aes(R_est,R.GBD_est))+
   labs(x= "Model-estimated RSV-attributable all cause mortality rate\n(per 100,000 person-years,log-transformed)",
        y = "GBD-estimated RSV-attributable all cause mortality rate\n(per 100,000 person-years,log-transformed)",
        color='Income level')
+
+ggsave('plot/Diagnoal_GBD_all_Decode.tiff',width = 12, height = 6, dpi = 300,compression = "lzw")
+
+ggplot(df_compare_ALRI_DeCoDe,aes(R_est,R.GBD_est))+
+  geom_point(aes(color=Income2019))+
+  geom_smooth(method = 'lm',formula=as.formula(y~x+0))+
+  scale_x_log10()+
+  scale_y_log10()+
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", color = "black", linewidth = 0.5) +
+  theme_bw()+
+  facet_grid(.~age_group)+
+  labs(x= "Model-estimated RSV-attributable ALRI mortality rate\n(per 100,000 person-years,log-transformed)",
+       y = "GBD-estimated RSV-attributable LRI mortality rate\n(per 100,000 person-years,log-transformed)",
+       color='Income level')+
+  scale_color_discrete(
+    labels = c(
+      "L" = "Low income",
+      "LM" = "Lower middle income",
+      "UM" = "Upper middle income"
+      # 如果有 HIC 也加上
+    )
+  )
+  
+
+ggsave('plot/Diagnoal_GBD_ALRI_Decode.tiff',width = 12, height = 6, dpi = 300,compression = "lzw")
+
+# Ration to GBD ----
+c('df_compare_all_DeCoDe','df_compare_ALRI_DeCoDe') %>% walk(~{
+  df_tem<-get(.x)
+  xlab=if_else(.x=='df_compare_all_DeCoDe','Ratio of model-estimated RSV-attributable all cause mortality rate\n
+               to GBD-estimtaed RSV-attributable LRI mortality rate',
+               'Ratio of model-estimated RSV-attributable ALRI mortality rate\n
+               to GBD-estimtaed RSV-attributable LRI mortality rate')
+  ggdensity(df_tem, x = "ratio",xlab = xlab,caption='dashed line: median',
+            add = "median", rug = TRUE,ylab = 'Density',
+            color = "age_group", fill = "age_group",
+            palette = c("#00AFBB", "#E7B800"))+
+    scale_x_continuous(breaks = 1:15)+
+    labs(fill=NULL,color=NULL)+
+    theme(axis.title.x = element_text(lineheight = .5))
+  ggsave(sprintf("plot/Ratio_to_GBD_%s.tiff",.x), width = 8, height = 6, dpi = 300,compression = "lzw")
+})
+
+
 

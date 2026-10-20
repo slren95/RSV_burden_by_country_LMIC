@@ -53,3 +53,20 @@ PRISMA_save(plot,filename = 'plot/PRISMA2020_flowdiagram.pdf',overwrite = T)
 ?PRISMA_data
 ?PRISMA_save
 
+# Updated Prisma ---- remove via other methods
+
+plot_new<-import('data/PRISMA_remove_other_method.xlsx') %>%
+  PRISMA_data() %>% 
+  PRISMA_flowdiagram(fontsize = 12,previous = T,other = T,
+                     detail_databases=T)
+
+plot_new[["x"]][["diagram"]] <- gsub(
+  '\\nReports of total included studies\\n\\(n = NA\\)',
+  '',
+  plot_new[["x"]][["diagram"]]
+)
+
+plot_new
+
+
+PRISMA_save(plot_new,filename = 'plot/PRISMA2020_flowdiagram_new.png',overwrite = T)

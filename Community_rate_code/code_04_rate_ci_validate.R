@@ -51,4 +51,6 @@ df_valid_hos2<-left_join(df_valid_hos, all.raw %>% select(-c(Country,ISOCountry,
 
 export(df_valid_com2,'../rda/df_valid_com2.rds')
 export(df_valid_hos2,'../rda/df_valid_hos2.rds')
+
+bind_rows(df_valid_com2,df_valid_hos2) %>% count(SID) %>% nrow()
  

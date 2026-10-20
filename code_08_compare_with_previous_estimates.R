@@ -9,7 +9,7 @@ library(ggrepel)
 df_lmic_imputed<-import('rda/df_lmic_imputed.rds',trust=T)
 
 # Lancet 2022 ----
-## 提取 PDF 文件中的表格 
+## 提取 PDF 文件中的表格  Table S13
 file_path <- "data/Lancet_appendix.pdf"
 
 tables <- extract_tables(

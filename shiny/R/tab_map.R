@@ -1,5 +1,7 @@
 init_map_server <- function(input, output, session) {
   
+  carto_key <-"cb1_3vxu1_01478dc6fb922c86ebb04017"
+  
   observeEvent(input$map_shape_click, {
     click <- input$map_shape_click
     if (!is.null(click$id) && !(click$id %in% input$comparison_countries)) {
@@ -187,7 +189,14 @@ init_map_server <- function(input, output, session) {
   })
   
   output$map <- renderLeaflet({
-    leaflet() %>% addProviderTiles(providers$CartoDB.Positron) %>% setView(lng = 20, lat = 10, zoom = 2)
+    leaflet() %>%
+      addProviderTiles(providers$CartoDB.Positron) %>%
+      addTiles(
+        urlTemplate = paste0(
+          "https://{s).basenaps.cartocdn.con/rastertiles/voyager/{z}/{x}/{y).png?key=",
+          carto_key)
+        ) %>% 
+      setView(lng = 20, lat = 10, zoom = 2)
   })
   
   observe({
@@ -234,13 +243,13 @@ init_map_server <- function(input, output, session) {
         '<div style="margin-bottom:12px;">',
         '<div style="background:#2b83ba; color:white; padding:6px 10px; border-radius:4px 4px 0 0; font-weight:bold; font-size:12px;">📊 Rate (95% UI)</div>',
         '<div style="display:grid; grid-template-columns:1fr auto; gap:4px 8px; padding:8px; background:#f9f9f9; border-radius:0 0 4px 4px;">',
-        '<div style="color:#555; font-weight:500;">RSV-associated ALRI incidence</div>',
+        '<div style="color:#555; font-weight:500;">RSV-associated ALRI incidence /1,000 person-years</div>',
         '<div style="text-align:right; font-weight:bold; color:#d7191c;">', ifelse(is.na(row$inc_R), "NA", row$inc_R_ci), '</div>',
-        '<div style="color:#555; font-weight:500;">RSV-associated ALRI hospital admission</div>',
+        '<div style="color:#555; font-weight:500;">RSV-associated ALRI hospital admission /1,000 person-years</div>',
         '<div style="text-align:right; font-weight:bold; color:#d7191c;">', ifelse(is.na(row$hos_R), "NA", row$hos_R_ci), '</div>',
-        '<div style="color:#555; font-weight:500;">RSV-attributable mortality</div>',
+        '<div style="color:#555; font-weight:500;">RSV-attributable mortality /100,000 person-years</div>',
         '<div style="text-align:right; font-weight:bold; color:#d7191c;">', ifelse(is.na(row$att_R), "NA", row$att_R_ci), '</div>',
-        '<div style="color:#555; font-weight:500;">RSV-associated mortality</div>',
+        '<div style="color:#555; font-weight:500;">RSV-associated mortality /100,000 person-years</div>',
         '<div style="text-align:right; font-weight:bold; color:#d7191c;">', ifelse(is.na(row$ass_R), "NA", row$ass_R_ci), '</div>',
         '</div>',
         

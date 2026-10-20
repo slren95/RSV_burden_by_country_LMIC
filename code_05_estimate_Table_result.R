@@ -2,6 +2,7 @@ rm(list=ls())
 library(rio)
 library(tidyverse)
 library(officer)
+library(writexl)
 source('functions.R')
 
 df_lmic_imputed<-import('rda/df_lmic_imputed.rds',trust=T)
@@ -183,3 +184,309 @@ bind_rows(Table_incidence[184:185,] %>% bind_cols(Metric='RSV-associated ALRI in
           Table_mortality_all_NP[182:183,] %>% bind_cols(Metric='RSV-associated all cause deaths',.),
           Table_mortality_all_DeCoDe[182:183,] %>% bind_cols(Metric='RSV-attributable all cause deaths',.)) %>%
   rio::export('docs/China.xlsx')
+
+# Manuscript Table ----
+## mort ----
+c('df_sum_all_DeCoDe','df_sum_all_NP') %>%
+  map(~{
+    colName_N<-if_else(.x=='df_sum_all_DeCoDe','N_mort.att','N_mort.ass')
+    colName_R<-if_else(.x=='df_sum_all_DeCoDe','R_mort.att','R_mort.ass')
+    df_sum_all_DeCoDe<-get(.x)
+    df_sum_all_DeCoDe %>%
+      arrange(Income2019,CountryName) %>%
+      mutate(across(contains('_N_'),
+                    function(x) {
+                      case_when(
+                        x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                        x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                        TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                      )
+                    }),
+             across(contains('_R_'),~round(.x*100,1))) %>%
+      transmute(Income2019,CountryName,ISOCountry,
+                N_0006 = sprintf('%s\n(%s–%s)', m0006_N_500, m0006_N_025, m0006_N_975),
+                N_0612 = sprintf('%s\n(%s–%s)', m0612_N_500, m0612_N_025, m0612_N_975),
+                N_1260 = sprintf('%s\n(%s–%s)', m1260_N_500, m1260_N_025, m1260_N_975),
+                N_0060 = sprintf('%s\n(%s–%s)', m0060_N_500, m0060_N_025, m0060_N_975),
+                N_0012 = sprintf('%s\n(%s–%s)', m0012_N_500, m0012_N_025, m0012_N_975),
+                R_0006 = sprintf('%.1f\n(%.1f–%.1f)', m0006_R_500, m0006_R_025, m0006_R_975),
+                R_0612 = sprintf('%.1f\n(%.1f–%.1f)', m0612_R_500, m0612_R_025, m0612_R_975),
+                R_1260 = sprintf('%.1f\n(%.1f–%.1f)', m1260_R_500, m1260_R_025, m1260_R_975),
+                R_0060 = sprintf('%.1f\n(%.1f–%.1f)', m0060_R_500, m0060_R_025, m0060_R_975),
+                R_0012 = sprintf('%.1f\n(%.1f–%.1f)', m0012_R_500, m0012_R_025, m0012_R_975)) %>%
+      pivot_longer(cols=matches('^[RN]_'),names_to = c(".value", "Age"),
+                   names_pattern = "([NR])_(.*)") %>%
+      mutate(!!colName_R:=R,!!colName_N:=N) %>%
+      select(-N,-R)
+  }) %>%
+  do.call(left_join,.) %>%
+  mutate(Age=recode(Age,'0006'='0-<6m','0612'='6-<12m','0012'='0-<12m','1260'='12-<60m','0060'='0-<60m'),
+         Age=factor(Age,levels=c('0-<6m','6-<12m','0-<12m','12-<60m','0-<60m'))) %T>% 
+  { 
+    filter(.,Age %in% c('0-<12m','0-<60m')) %>%
+      arrange(Income2019,CountryName,Age) %>%
+      split(.,.$Income2019) %>%
+      map_dfr(~{
+        df<-.x
+        df %>% 
+          group_by(CountryName) %>%
+          mutate(CountryName=if_else(row_number()==1,CountryName,'')) %>%
+          ungroup() %>%
+          transmute(Country=CountryName,Age,R_mort.att,N_mort.att,R_mort.ass,N_mort.ass) %>%
+          bind_rows(data.frame(Country=switch(df[[1,'Income2019']],'L'='Lower-income','LM'='Lower-middle-income','UM'='Upper-middle-income')),
+                    .)
+      }) %>%
+      export_table_to_doc('docs/Table_Manuscript_mort_1260.docx')
+  } %>% {
+    filter(.,Age %in% c('0-<6m','6-<12m','12-<60m')) %>%
+      arrange(Income2019,CountryName,Age) %>%
+      split(.,.$Income2019) %>%
+      map_dfr(~{
+        df<-.x
+        df %>% 
+          group_by(CountryName) %>%
+          mutate(CountryName=if_else(row_number()==1,CountryName,'')) %>%
+          ungroup() %>%
+          transmute(Country=CountryName,Age,R_mort.att,N_mort.att,R_mort.ass,N_mort.ass) %>%
+          bind_rows(data.frame(Country=switch(df[[1,'Income2019']],'L'='Lower-income','LM'='Lower-middle-income','UM'='Upper-middle-income')),
+                    .)
+      }) %>%
+      export_table_to_doc('docs/Table_Manuscript_mort_0612.docx')
+  }
+
+## inc and hos ----
+df_hos_by_country2_1000<-import("rda/df_hos_by_country2_1000.rds",trust=T)
+
+df_hos_by_country2.long_1000<-df_hos_by_country2_1000 %>%
+  dplyr::select(ISOCountry,Income2019,matches('^(Hos|Rate)')) %>%
+  pivot_longer(cols =matches('^(Hos|Rate)'),names_pattern = '(.*)_(.*)_(.*)',names_to = c('metric','AGEGR','quantile')) %>%
+  mutate(type=recode(quantile,'q500'='est','q025'='lci','q975'='uci'))
+
+left_join(
+  RF.res.impute2 %>%
+    reframe(across(c(IR,N),list(q500=~quantile(.x,0.5),
+                                q025=~quantile(.x,0.025),
+                                q975=~quantile(.x,0.975))),.by = c(ISOCountry,Income2019,AGEGR)) %>%
+    mutate(across(starts_with('IR_'),~round(.x,1)),
+           across(starts_with('N_'),
+                  function(x) {
+                    case_when(
+                      x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                      x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                      TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                    )
+                  })) %>%
+    mutate(R_inc=sprintf('%.1f\n(%.1f–%.1f)',IR_q500, IR_q025, IR_q975),
+           N_inc=sprintf('%s\n(%s–%s)', N_q500, N_q025, N_q975)) %>%
+    select(-starts_with('N_q'),-starts_with('IR_q')),
+  df_hos_by_country2.long_1000 %>% 
+    pivot_wider(id_cols = c(ISOCountry,Income2019,AGEGR),names_from = c(metric,type),values_from = value) %>%
+    mutate(N.est=if_else(AGEGR!='12-<60m',Hos_est,Hos_q500pos),IR.est=if_else(AGEGR!='12-<60m',Rate_est,Rate_q500pos),
+           N.lci=if_else(AGEGR!='12-<60m',Hos_lci,Hos_q025pos),IR.lci=if_else(AGEGR!='12-<60m',Rate_lci,Rate_q025pos),
+           N.uci=if_else(AGEGR!='12-<60m',Hos_uci,Hos_q975pos),IR.uci=if_else(AGEGR!='12-<60m',Rate_uci,Rate_q975pos)) %>%
+    select(ISOCountry,Income2019,AGEGR,starts_with('N.'),starts_with('IR.')) %>%
+    mutate(across(starts_with('R.'),~round(.x,1)),
+           across(starts_with('N.'),
+                  function(x) {
+                    case_when(
+                      x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                      x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                      TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                    )
+                  })) %>%
+    mutate(R_hos=sprintf('%.1f\n(%.1f–%.1f)',IR.est, IR.lci, IR.uci),
+           N_hos=sprintf('%s\n(%s–%s)', N.est, N.lci, N.uci)) %>%
+    select(-starts_with('N.'),-starts_with('IR.'))
+) %>%
+  left_join(df_lmic_imputed %>% select(ISOCountry,CountryName)) %>%
+  mutate(Age=factor(AGEGR,levels=c('0-<6m','6-<12m','0-<12m','12-<60m','0-<60m'))) %>%
+  select(-AGEGR) %T>% 
+  { 
+    filter(.,Age %in% c('0-<12m','0-<60m')) %>%
+      arrange(Income2019,CountryName,Age) %>%
+      split(.,.$Income2019) %>%
+      map_dfr(~{
+        df<-.x
+        df %>% 
+          group_by(CountryName) %>%
+          mutate(CountryName=if_else(row_number()==1,CountryName,'')) %>%
+          ungroup() %>%
+          transmute(Country=CountryName,Age,R_inc,N_inc,R_hos,N_hos) %>%
+          bind_rows(data.frame(Country=switch(df[[1,'Income2019']],'L'='Lower-income','LM'='Lower-middle-income','UM'='Upper-middle-income')),
+                    .)
+      }) %>%
+      export_table_to_doc('docs/Table_Manuscript_inc_hos_1260.docx')
+  } %>% {
+    filter(.,Age %in% c('0-<6m','6-<12m','12-<60m')) %>%
+      arrange(Income2019,CountryName,Age) %>%
+      split(.,.$Income2019) %>%
+      map_dfr(~{
+        df<-.x
+        df %>% 
+          group_by(CountryName) %>%
+          mutate(CountryName=if_else(row_number()==1,CountryName,'')) %>%
+          ungroup() %>%
+          transmute(Country=CountryName,Age,R_inc,N_inc,R_hos,N_hos) %>%
+          bind_rows(data.frame(Country=switch(df[[1,'Income2019']],'L'='Lower-income','LM'='Lower-middle-income','UM'='Upper-middle-income')),
+                    .)
+      }) %>%
+      export_table_to_doc('docs/Table_Manuscript_inc_hos_0612.docx')
+  }
+
+# Raw Excel Table ----
+t1<-RF.res.impute2 %>%
+  reframe(across(c(IR,N),list(q500=~quantile(.x,0.5),
+                              q025=~quantile(.x,0.025),
+                              q975=~quantile(.x,0.975))),.by = c(ISOCountry,Income2019,AGEGR)) %>%
+  mutate(across(starts_with('IR_'),~round(.x,1)),
+         across(starts_with('N_'),
+                function(x) {
+                  case_when(
+                    x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                    x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                    TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                  )
+                })) %>%
+  mutate(R_inc=sprintf('%.1f\n(%.1f–%.1f)',IR_q500, IR_q025, IR_q975),
+         N_inc=sprintf('%s\n(%s–%s)', N_q500, N_q025, N_q975)) %>%
+  left_join(df_lmic_imputed %>% select(ISOCountry,CountryName)) %>%
+  relocate(CountryName,.after=Income2019) %>%
+  rename(N_est=N_q500,N_lower=N_q025,N_upper=N_q975,
+         R_est=IR_q500,R_lower=IR_q025,R_upper=IR_q975,
+  )
+
+t2<-df_hos_by_country2.long_1000 %>% 
+  pivot_wider(id_cols = c(ISOCountry,Income2019,AGEGR),names_from = c(metric,type),values_from = value) %>%
+  mutate(N.est=if_else(AGEGR!='12-<60m',Hos_est,Hos_q500pos),IR.est=if_else(AGEGR!='12-<60m',Rate_est,Rate_q500pos),
+         N.lci=if_else(AGEGR!='12-<60m',Hos_lci,Hos_q025pos),IR.lci=if_else(AGEGR!='12-<60m',Rate_lci,Rate_q025pos),
+         N.uci=if_else(AGEGR!='12-<60m',Hos_uci,Hos_q975pos),IR.uci=if_else(AGEGR!='12-<60m',Rate_uci,Rate_q975pos)) %>%
+  select(ISOCountry,Income2019,AGEGR,starts_with('N.'),starts_with('IR.')) %>%
+  mutate(across(starts_with('R.'),~round(.x,1)),
+         across(starts_with('N.'),
+                function(x) {
+                  case_when(
+                    x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                    x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                    TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                  )
+                })) %>%
+  mutate(R_hos=sprintf('%.1f\n(%.1f–%.1f)',IR.est, IR.lci, IR.uci),
+         N_hos=sprintf('%s\n(%s–%s)', N.est, N.lci, N.uci)) %>%
+  left_join(df_lmic_imputed %>% select(ISOCountry,CountryName)) %>%
+  relocate(CountryName,.after=Income2019) %>%
+  rename(N_est=N.est,N_lower=N.lci,N_upper=N.uci,
+         R_est=IR.est,R_lower=IR.lci,R_upper=IR.uci,
+         )
+
+
+t3 <- df_sum_all_DeCoDe %>%
+  arrange(Income2019, CountryName) %>%
+  mutate(across(contains('_N_'),
+                function(x) {
+                  case_when(
+                    x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                    x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                    TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                  )
+                }),
+         across(contains('_R_'), ~ round(.x * 100, 1))) %>%
+  # 先转换成长格式，提取AGEGR
+  pivot_longer(
+    cols = starts_with("m") & (contains("_N_") | contains("_R_")),
+    names_to = c("AGEGR_code", "metric", "stat"),
+    names_pattern = "m(.*)_([NR])_(\\d+)"
+  ) %>%
+  pivot_wider(
+    names_from = c(metric, stat),
+    values_from = value,
+    names_sep = "_"
+  ) %>%
+  rename(
+    N_est = N_500,
+    N_lower = N_025,
+    N_upper = N_975,
+    R_est = R_500,
+    R_lower = R_025,
+    R_upper = R_975
+  ) %>%
+  # 将AGEGR编码转换为可读格式
+  mutate(
+    AGEGR = case_when(
+      AGEGR_code == "0006" ~ "0-<6m",
+      AGEGR_code == "0612" ~ "6-<12m",
+      AGEGR_code == "1260" ~ "12-<60m",
+      AGEGR_code == "0060" ~ "0-<60m",
+      AGEGR_code == "0012" ~ "0-<12m",
+      TRUE ~ AGEGR_code
+    ),
+    # 创建格式化的字符串列
+    N_mort.att = sprintf('%s (%s–%s)', N_est, N_lower, N_upper),
+    R_mort.att = sprintf('%.1f (%.1f–%.1f)', R_est, R_lower, R_upper)
+  ) %>%
+  # 按AGEGR顺序排列（如果需要）
+  mutate(AGEGR = factor(AGEGR, levels = c("0-<6m", "6-<12m", "12-<60m", "0-<12m", "0-<60m"))) %>%
+  arrange(Income2019, CountryName, AGEGR) %>%
+  # 如果不需要保留code列，可以删除
+  select(-AGEGR_code,-starts_with('pop_')) %>%
+  relocate(AGEGR,.after = CountryName)
+
+t4 <- df_sum_all_NP %>%
+  arrange(Income2019, CountryName) %>%
+  mutate(across(contains('_N_'),
+                function(x) {
+                  case_when(
+                    x < 10 ~ round(x),                    # 个位数：保留原样（四舍五入到整数）
+                    x < 100 ~ round(x / 10) * 10,         # 两位数：末尾取0（如 86 -> 90）
+                    TRUE ~ round(x / 100) * 100           # 三位及以上：最后两位取0（如 1583 -> 1600）
+                  )
+                }),
+         across(contains('_R_'), ~ round(.x * 100, 1))) %>%
+  # 先转换成长格式，提取AGEGR
+  pivot_longer(
+    cols = starts_with("m") & (contains("_N_") | contains("_R_")),
+    names_to = c("AGEGR_code", "metric", "stat"),
+    names_pattern = "m(.*)_([NR])_(\\d+)"
+  ) %>%
+  pivot_wider(
+    names_from = c(metric, stat),
+    values_from = value,
+    names_sep = "_"
+  ) %>%
+  rename(
+    N_est = N_500,
+    N_lower = N_025,
+    N_upper = N_975,
+    R_est = R_500,
+    R_lower = R_025,
+    R_upper = R_975
+  ) %>%
+  # 将AGEGR编码转换为可读格式
+  mutate(
+    AGEGR = case_when(
+      AGEGR_code == "0006" ~ "0-<6m",
+      AGEGR_code == "0612" ~ "6-<12m",
+      AGEGR_code == "1260" ~ "12-<60m",
+      AGEGR_code == "0060" ~ "0-<60m",
+      AGEGR_code == "0012" ~ "0-<12m",
+      TRUE ~ AGEGR_code
+    ),
+    # 创建格式化的字符串列
+    N_mort.ass = sprintf('%s (%s–%s)', N_est, N_lower, N_upper),
+    R_mort.ass = sprintf('%.1f (%.1f–%.1f)', R_est, R_lower, R_upper)
+  ) %>%
+  # 按AGEGR顺序排列（如果需要）
+  mutate(AGEGR = factor(AGEGR, levels = c("0-<6m", "6-<12m", "12-<60m", "0-<12m", "0-<60m"))) %>%
+  arrange(Income2019, CountryName, AGEGR) %>%
+  # 如果不需要保留code列，可以删除
+  select(-AGEGR_code,-starts_with('pop_')) %>%
+  relocate(AGEGR,.after = CountryName)
+
+list_of_datasets <- list(
+  "Incidence" = t1,
+  "Hospitalisation" = t2,
+  "Attributable_mortality" = t3,
+  "Associated_mortality" = t4
+)
+
+# 保存为Excel文件
+write_xlsx(list_of_datasets, "docs/Table_all_detail.xlsx")
