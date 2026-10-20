@@ -1,6 +1,6 @@
 init_map_server <- function(input, output, session) {
   
-  carto_key <-"cb1_3vxu1_01478dc6fb922c86ebb04017"
+  carto_key <-"cb1_4pme_1_3a4aa852058754e46b97cf03"
   
   observeEvent(input$map_shape_click, {
     click <- input$map_shape_click
@@ -189,14 +189,18 @@ init_map_server <- function(input, output, session) {
   })
   
   output$map <- renderLeaflet({
-    leaflet() %>%
-      addProviderTiles(providers$CartoDB.Positron) %>%
-      addTiles(
-        urlTemplate = paste0(
-          "https://{s).basenaps.cartocdn.con/rastertiles/voyager/{z}/{x}/{y).png?key=",
-          carto_key)
-        ) %>% 
-      setView(lng = 20, lat = 10, zoom = 2)
+    output$map <- renderLeaflet({
+      leaflet() %>%
+        #addTiles("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png") %>%
+        addTiles(
+          urlTemplate = paste0(
+            "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=",
+            carto_key
+          ),
+          options = tileOptions(subdomains = c("a", "b", "c", "d"))
+        ) %>%
+        setView(lng = 20, lat = 10, zoom = 2)
+    })
   })
   
   observe({
