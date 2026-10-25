@@ -327,8 +327,9 @@ c('inc','hos','mort_att','mort_ass') %>%
           } else {
             # N：低绿 → 中白 → 高紫
             scale_fill_gradient2(transform = 'log10',
-              low = "#1b7837",   # 深森绿
-              mid = "#f7f7f7",   # 纯白
+              #low = "#1b7837",   # 深森绿
+             # mid = "#f7f7f7",   # 纯白
+              low = "#f7f7f7",
               high = "#762a83",
               midpoint = mid_N,
               na.value = "#999999",
@@ -472,7 +473,7 @@ RF.res.impute2 %>%
   mutate(str_R=sprintf('%s. %s %s (%s–%s) / 1,000',row_number(),CountryName,IR_q500,IR_q025,IR_q975),
          str_N=sprintf('%s. %s %s (%s–%s)',row_number(),CountryName,N_q500,N_q025,N_q975)) %>%
   mutate(str_R2=paste0(str_R,collapse = '\n'),
-         str_N2=paste0(str_N,collapse = '\n')) %>% view()
+         str_N2=paste0(str_N,collapse = '\n')) %>% 
   pull(str_R2) %>%
   head(1) %>%
   cat("\n\n Inc_R \n", ., file = "docs/top_5.txt", append = TRUE)

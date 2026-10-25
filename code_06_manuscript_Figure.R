@@ -361,8 +361,9 @@ plot_res<-c('inc','hos','mort_att','mort_ass') %>%
           } else {
             # N：低绿 → 中白 → 高紫
             scale_fill_gradient2(transform = 'log10',
-                                 low = "#1b7837",   # 深森绿
-                                 mid = "#f7f7f7",   # 纯白
+                                 # = "#1b7837",   # 深森绿
+                                 #mid = "#f7f7f7",   # 纯白
+                                 low = "#f7f7f7",
                                  high = "#762a83",
                                  midpoint = mid_N,
                                  na.value = "#999999",

@@ -212,11 +212,33 @@ init_map_server <- function(input, output, session) {
     min_val <- min(val_clean, na.rm = TRUE)
     max_val <- max(val_clean, na.rm = TRUE)
     
+    # if (input$select_type == "R") {
+    #   color_palette <- c("#2b83ba", "#f7f7f7", "#d7191c")
+    #   legend_title <- "Rate"
+    # } else {
+    #   color_palette <- c("#f7f7f7", "#762a83")
+    #   legend_title <- "Number of cases"
+    # }
     if (input$select_type == "R") {
       color_palette <- c("#2b83ba", "#f7f7f7", "#d7191c")
-      legend_title <- "Rate"
+      
+      denominator <- if (
+        input$select_metric %in% c(
+          "RSV-associated ALRI incidence",
+          "RSV-associated ALRI hospital admission"
+        )
+      ) {
+        "1,000"
+      } else {
+        "100,000"
+      }
+      
+      legend_title <- paste0(
+        "Rate<br><small>(per ", denominator, " person-years)</small>"
+      )
+      
     } else {
-      color_palette <- c("#1b7837", "#f7f7f7", "#762a83")
+      color_palette <- c("#f7f7f7", "#762a83")
       legend_title <- "Number of cases"
     }
     
@@ -242,7 +264,7 @@ init_map_server <- function(input, output, session) {
         
         # Rate 表格 - 使用 CSS Grid
         '<div style="margin-bottom:12px;">',
-        '<div style="background:#2b83ba; color:white; padding:6px 10px; border-radius:4px 4px 0 0; font-weight:bold; font-size:12px;">📊 Rate (95% UI)</div>',
+        '<div style="background:#2b83ba; color:white; padding:6px 10px; border-radius:4px 4px 0 0; font-weight:bold; font-size:12px;">📊 Rate (95% UR)</div>',
         '<div style="display:grid; grid-template-columns:1fr auto; gap:4px 8px; padding:8px; background:#f9f9f9; border-radius:0 0 4px 4px;">',
         '<div style="color:#555; font-weight:500;">RSV-associated ALRI incidence /1,000 person-years</div>',
         '<div style="text-align:right; font-weight:bold; color:#d7191c;">', ifelse(is.na(row$inc_R), "NA", row$inc_R_ci), '</div>',
@@ -256,7 +278,7 @@ init_map_server <- function(input, output, session) {
         
         # Cases 表格
         '<div>',
-        '<div style="background:#1b7837; color:white; padding:6px 10px; border-radius:4px 4px 0 0; font-weight:bold; font-size:12px;">🔢 Absolute Cases (95% UI)</div>',
+        '<div style="background:#1b7837; color:white; padding:6px 10px; border-radius:4px 4px 0 0; font-weight:bold; font-size:12px;">🔢 Absolute Cases (95% UR)</div>',
         '<div style="display:grid; grid-template-columns:1fr auto; gap:4px 8px; padding:8px; background:#f9f9f9; border-radius:0 0 4px 4px;">',
         '<div style="color:#555; font-weight:500;">RSV-associated ALRI incidence</div>',
         '<div style="text-align:right; font-weight:bold; color:#762a83;">', ifelse(is.na(row$inc_N), "NA", row$inc_N_ci), '</div>',
@@ -284,7 +306,7 @@ init_map_server <- function(input, output, session) {
         group = "countries"
       ) %>%
       addLegend(
-        pal = pal, values = ~value_to_plot, opacity = 0.8, title = legend_title, position = "bottomright",
+        pal = pal,  values = val_clean, opacity = 0.8, title = legend_title, position = "bottomright",
         labFormat = labelFormat(transform = function(x) if (input$select_type == "N") round(x, 0) else round(x, 2))
       )
   })
@@ -368,7 +390,27 @@ init_map_server <- function(input, output, session) {
                              "RSV-associated mortality"              = "Associated mortality",
                              m # 如果没匹配上，用原始名称兜底
       )
-      y_title   <- metric_short
+      
+      #y_title   <- metric_short
+      y_title <- if (input$select_type == "R") {
+        unit <- if (m %in% c(
+          "RSV-associated ALRI incidence",
+          "RSV-associated ALRI hospital admission"
+        )) "per 1,000 person-years" else "per 100,000 person-years"
+        
+        paste0(metric_short, " rate<br>(", unit, ")")
+        
+      } else {
+        unit <- if (m == "RSV-associated ALRI incidence") {
+          "episodes"
+        } else if (m == "RSV-associated ALRI hospital admission") {
+          "admissions"
+        } else {
+          "deaths"
+        }
+        
+        paste0("Number of ", unit)
+      }
       
       plot_ly(
         data = df_sub, 
