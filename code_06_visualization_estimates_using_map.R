@@ -611,3 +611,10 @@ df_sum_all_NP %>%
   head(1) %>%
   cat("\n\n Mort_ass_N \n", ., file = "docs/top_5.txt", append = TRUE)
 
+# Daniel ----
+
+df_plot_inc %>% left_join(df_lmic_imputed %>% select(ISOCountry,WHORegion)) %>%
+  filter(AGEGR %in% c('0-<60m','0-<6m'),WHORegion=='Afr') %>% 
+  group_by(AGEGR) %>%
+  mutate(pro=round(N*100/sum(N),2)) %>%
+  view()

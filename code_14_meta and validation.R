@@ -138,7 +138,7 @@ df_valid.main<-df_valid_all %>%
   mutate(gid= paste(Country, AGEGR, metric,valid_type,sep = "_"))
 
 # NEW ADDED remove duplicate study
-export(df_valid.main,'validation/df_valid.main.xlsx')
+rio::export(df_valid.main,'validation/df_valid.main.xlsx')
 df_valid.main_copy<-import('validation/df_valid.main - 副本.xlsx') %>%
   mutate(uid=paste(Country, AGEGR, metric,SID,sep = "_"))
 
@@ -293,7 +293,7 @@ plots_inc<-df_meta_plot_main %>%
       facet_wrap(~Country_AGEGR)
   })
 
-plots_inc[c(2:7,1)] %>%
+plots_inc[c(2:5,1)] %>%
   wrap_plots(nrow = 3, guides = "collect",axes = 'collect_x') &
   theme_bw() 
 
@@ -725,6 +725,8 @@ df_final_main %>%
 # <chr>    <int>          <dbl>      <dbl>      <dbl>       <dbl>
 #   1 hos         16          0.171     0.0507      0.412       0.362
 # 2 inc         15          0.536     0.306       0.888       0.582
+
+# inc         13          0.511     0.274       0.734       0.460 new 
 # 3 mort.ass     7          0.548     0.293       0.601       0.307
 # 4 mort.att     1          0.484     0.484       0.484       0   
 
