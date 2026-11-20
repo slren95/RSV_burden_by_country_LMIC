@@ -99,7 +99,7 @@ ui <- page_navbar(
         # 3. 右侧：比较卡片
         conditionalPanel(
           style = "height: 100%;", # 强行让条件面板自身高度吃满
-          condition = "input.show_floating_card == 'TRUE' && input.comparison_countries.length > 0",
+          condition = "input.show_floating_card && input.comparison_countries && input.comparison_countries.length > 0",
           card(
             id = "floating_card_box",
             full_screen = TRUE,
@@ -203,7 +203,7 @@ ui <- page_navbar(
                                            "0-12 months" = "0-<12m", 
                                            "12-60 months" = "12-<60m", 
                                            "0-60 months" = "0-<60m"),
-                               selected = c("0-<6m", "6-<12m", "12-60m")),
+                               selected = c("0-<6m", "6-<12m", "12-<60m")),
             hr(),
             checkboxInput("comp_is_percent", "Enable Percentage Stacked Bar", value = TRUE)
           ),

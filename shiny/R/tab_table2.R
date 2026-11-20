@@ -194,11 +194,7 @@ init_table2_server <- function(input, output, session) {
       relocate(Income2019, WHORegion, .after = Country) %>%
       mutate(WHORegion = toupper(WHORegion))
     
-    # 对所有 N_ 开头的点估计列（如 N_0-<6m 等）做 log 转换以适配背景着色
-    col_v_n <- names(df_wide)[grepl("^N_[0-9]", names(df_wide))]
-    df_wide <- df_wide %>%
-      mutate(across(all_of(col_v_n), ~log(.x + 1)))
-    
+    # 保留原始数量供下载使用；对数变换只用于下面的表格着色。
     df_wide
     
   })
@@ -221,6 +217,8 @@ init_table2_server <- function(input, output, session) {
     cols_R_txt  <- paste0("R_ci_", age_groups)
     cols_N_val  <- paste0("N_", age_groups)
     cols_N_txt  <- paste0("N_ci_", age_groups)
+
+    raw_df <- raw_df %>% mutate(across(all_of(cols_N_val), ~log1p(.x)))
     
     gt_obj <- gt(raw_df) %>%
       fmt_markdown(columns = Country) %>%
@@ -251,12 +249,19 @@ init_table2_server <- function(input, output, session) {
     
     # 2️⃣ 循环进行文本替换 (把点估计数字替换为 CI 字符串)
     for(i in seq_along(age_groups)) {
-      local_txt_R <- raw_df[[cols_R_txt[i]]]
-      local_txt_N <- raw_df[[cols_N_txt[i]]]
+      # gt 在渲染时才调用 fn；为每列捕获独立的文字，避免读取循环最后一组。
+      format_R <- local({
+        text <- raw_df[[cols_R_txt[i]]]
+        function(x) text
+      })
+      format_N <- local({
+        text <- raw_df[[cols_N_txt[i]]]
+        function(x) text
+      })
       
       gt_obj <- gt_obj %>%
-        text_transform(locations = cells_body(columns = !!sym(cols_R_val[i])), fn = function(x) local_txt_R) %>%
-        text_transform(locations = cells_body(columns = !!sym(cols_N_val[i])), fn = function(x) local_txt_N)
+        text_transform(locations = cells_body(columns = !!sym(cols_R_val[i])), fn = format_R) %>%
+        text_transform(locations = cells_body(columns = !!sym(cols_N_val[i])), fn = format_N)
     }
     
     # 3️⃣ 隐藏原始文本列和代码列
@@ -317,7 +322,7 @@ init_table2_server <- function(input, output, session) {
       }
       
       # 3. 写入 CSV
-      write_csv(export_df, file)
+      readr::write_csv(export_df, file)
     }
   )
 }

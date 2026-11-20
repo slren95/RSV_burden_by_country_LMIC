@@ -586,12 +586,19 @@ server <- function(input, output, session) {
     
     # 2️⃣ 循环进行文本替换 (把点估计数字替换为 CI 字符串)
     for(i in seq_along(age_groups)) {
-      local_txt_R <- raw_df[[cols_R_txt[i]]]
-      local_txt_N <- raw_df[[cols_N_txt[i]]]
+      # gt 在渲染时才调用 fn；为每列捕获独立的文字，避免读取循环最后一组。
+      format_R <- local({
+        text <- raw_df[[cols_R_txt[i]]]
+        function(x) text
+      })
+      format_N <- local({
+        text <- raw_df[[cols_N_txt[i]]]
+        function(x) text
+      })
       
       gt_obj <- gt_obj %>%
-        text_transform(locations = cells_body(columns = !!sym(cols_R_val[i])), fn = function(x) local_txt_R) %>%
-        text_transform(locations = cells_body(columns = !!sym(cols_N_val[i])), fn = function(x) local_txt_N)
+        text_transform(locations = cells_body(columns = !!sym(cols_R_val[i])), fn = format_R) %>%
+        text_transform(locations = cells_body(columns = !!sym(cols_N_val[i])), fn = format_N)
     }
     
     # 3️⃣ 隐藏原始文本列和代码列

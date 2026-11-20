@@ -19,7 +19,7 @@ init_composition_server <- function(input, output, session) {
       target_iso <- unique(df_current_sub$ISOCountry)
     } else if (preset_mode %in% c("L", "LM", "UM")) {
       target_iso <- df_current_sub %>% filter(Income2019 == preset_mode) %>% pull(ISOCountry) %>% unique()
-    } else if (preset_mode %in% c("AFRO", "AMRO", "EMRO", "EURO", "SEARO", "WPRO")) {
+    } else if (preset_mode %in% c("Afr", "Amr", "Emr", "Eur", "Sear", "Wpr")) {
       target_iso <- df_current_sub %>% filter(WHORegion == preset_mode) %>% pull(ISOCountry) %>% unique()
     }
     
@@ -94,7 +94,7 @@ init_composition_server <- function(input, output, session) {
       arrange(desc(N), .by_group = TRUE) %>%
       mutate(
         segment_total = sum(N),
-        pct = (N / segment_total) * 100,
+        pct = if_else(segment_total > 0, (N / segment_total) * 100, 0),
         
         # 精准计算累计值
         cum_abs = cumsum(N),

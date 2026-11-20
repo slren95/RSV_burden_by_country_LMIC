@@ -2,8 +2,8 @@ init_table1_server <- function(input, output, session) {
   
   all_metrics_broad_data <- reactive({
     
-    req(input$select_age)
-    age_filter <- input$select_age
+    req(input$table_age)
+    age_filter <- input$table_age
     
     # 🔧【已修复】：删除了导致崩溃的非法字符 "... ="
     ci_inc <- RF.res.impute2 %>%
@@ -305,7 +305,7 @@ init_table1_server <- function(input, output, session) {
       df_names <- df_master %>% distinct(ISOCountry, CountryName) %>% filter(!is.na(CountryName))
       export_df <- raw_mat %>% left_join(df_names, by = "ISOCountry") %>%
         relocate(CountryName,ISOCountry)
-      write_csv(export_df, file)
+      readr::write_csv(export_df, file)
     }
   )
 }

@@ -61,7 +61,8 @@ df_mort_ass <- df_sum_all_NP %>%
 df_master <- bind_rows(df_inc, df_hos, df_mort_att, df_mort_ass) %>%
   mutate(ISOCountry = toupper(trimws(ISOCountry))) %>%
   left_join(df_lmic_imputed %>% select(ISOCountry, CountryName,Income2019,WHORegion) %>% distinct(), by = "ISOCountry") %>%
-  left_join(world_sf %>% select(iso_a3,iso_a2),by=c('ISOCountry'='iso_a2'))
+  left_join(world_sf %>% st_drop_geometry() %>% select(iso_a3, iso_a2),
+            by = c('ISOCountry' = 'iso_a3'))
 
 country_choices <- df_master %>% 
   filter(!is.na(CountryName)) %>% 

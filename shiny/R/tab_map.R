@@ -311,7 +311,7 @@ init_map_server <- function(input, output, session) {
       )
   })
   output$grid_style_trigger <- renderUI({
-    if (input$show_floating_card == "TRUE" && length(input$comparison_countries) > 0) {
+    if (isTRUE(input$show_floating_card) && length(input$comparison_countries) > 0) {
       # 状态 A: 当需要显示时 —— 地图占 2 份宽度，图表卡片占 1 份宽度
       tags$style(HTML("
       #map_box { 
